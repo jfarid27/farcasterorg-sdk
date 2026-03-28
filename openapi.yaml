@@ -1,0 +1,1653 @@
+openapi: 3.1.0
+info:
+  title: HyperSnap API
+  description: API for HyperSnap Farcaster Hub and compatible V2 endpoints.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+tags:
+  - name: v1
+    description: Hub V1 API endpoints (Hubble compatible)
+  - name: v2
+    description: Farcaster V2 API compatibility endpoints
+paths:
+  # V1 Endpoints
+  /v1/info:
+    get:
+      tags: [v1]
+      summary: Get hub info
+      responses:
+        '200':
+          description: Hub info response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InfoResponse'
+  /v1/fids:
+    get:
+      tags: [v1]
+      summary: Get registered FIDs
+      parameters:
+        - name: shard_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: FIDs list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetFidsResponse'
+  /v1/castById:
+    get:
+      tags: [v1]
+      summary: Get cast by FID and hash
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: hash
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cast message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /v1/castsByFid:
+    get:
+      tags: [v1]
+      summary: Get casts by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: start_timestamp
+          in: query
+          schema:
+            type: integer
+        - name: stop_timestamp
+          in: query
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged casts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/castsByMention:
+    get:
+      tags: [v1]
+      summary: Get casts by mention
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged casts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/castsByParent:
+    get:
+      tags: [v1]
+      summary: Get casts by parent
+      parameters:
+        - name: fid
+          in: query
+          schema:
+            type: integer
+        - name: hash
+          in: query
+          schema:
+            type: string
+        - name: url
+          in: query
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged casts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/reactionById:
+    get:
+      tags: [v1]
+      summary: Get reaction by ID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: reaction_type
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: target_fid
+          in: query
+          schema:
+            type: integer
+        - name: target_hash
+          in: query
+          schema:
+            type: string
+        - name: target_url
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reaction message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /v1/reactionsByFid:
+    get:
+      tags: [v1]
+      summary: Get reactions by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: reaction_type
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged reactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/reactionsByCast:
+    get:
+      tags: [v1]
+      summary: Get reactions by cast
+      parameters:
+        - name: target_fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: target_hash
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: reaction_type
+          in: query
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged reactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/reactionsByTarget:
+    get:
+      tags: [v1]
+      summary: Get reactions by target URL
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: reaction_type
+          in: query
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged reactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/linkById:
+    get:
+      tags: [v1]
+      summary: Get link by ID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: link_type
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: target_fid
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Link message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /v1/linksByFid:
+    get:
+      tags: [v1]
+      summary: Get links by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: link_type
+          in: query
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged links
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/linksByTargetFid:
+    get:
+      tags: [v1]
+      summary: Get links by target FID
+      parameters:
+        - name: target_fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: link_type
+          in: query
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged links
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/userDataByFid:
+    get:
+      tags: [v1]
+      summary: Get user data by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged user data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/storageLimitsByFid:
+    get:
+      tags: [v1]
+      summary: Get storage limits by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Storage limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageLimitsResponse'
+  /v1/userNameProofByName:
+    get:
+      tags: [v1]
+      summary: Get username proof by name
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Username proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserNameProof'
+  /v1/userNameProofsByFid:
+    get:
+      tags: [v1]
+      summary: Get username proofs by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Username proofs list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsernameProofsResponse'
+  /v1/fidByName:
+    get:
+      tags: [v1]
+      summary: Get FID by name
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: FID response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FidResponse'
+  /v1/addressesByName:
+    get:
+      tags: [v1]
+      summary: Get addresses by name
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Name to addresses mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NameToAddressResponse'
+  /v1/fidByAddress:
+    get:
+      tags: [v1]
+      summary: Get FID by address
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Address to FID mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressToFidResponse'
+  /v1/validateMessage:
+    post:
+      tags: [v1]
+      summary: Validate a message (binary)
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+  /v1/submitMessage:
+    post:
+      tags: [v1]
+      summary: Submit a message (binary)
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Submitted message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /v1/submitBulkMessages:
+    post:
+      tags: [v1]
+      summary: Submit multiple messages (binary)
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Submit bulk response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitBulkMessagesResponse'
+  /v1/verificationsByFid:
+    get:
+      tags: [v1]
+      summary: Get verifications by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paged verifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+  /v1/onChainSignersByFid:
+    get:
+      tags: [v1]
+      summary: Get on-chain signers by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: On-chain event response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnChainEventResponse'
+  /v1/onChainEventsByFid:
+    get:
+      tags: [v1]
+      summary: Get on-chain events by FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: event_type
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: On-chain event response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnChainEventResponse'
+  /v1/onChainIdRegistryEventByAddress:
+    get:
+      tags: [v1]
+      summary: Get ID registry event by address
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: On-chain event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnChainEvent'
+  /v1/fidAddressType:
+    get:
+      tags: [v1]
+      summary: Get address type for FID
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Address type response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FidAddressTypeResponse'
+  /v1/events:
+    get:
+      tags: [v1]
+      summary: Get hub events
+      parameters:
+        - name: from_event_id
+          in: query
+          schema:
+            type: integer
+        - name: shard_index
+          in: query
+          schema:
+            type: integer
+        - name: stop_id
+          in: query
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: page_token
+          in: query
+          schema:
+            type: string
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Hub events response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsResponse'
+  /v1/eventById:
+    get:
+      tags: [v1]
+      summary: Get hub event by ID
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: shard_index
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Hub event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubEvent'
+  /v1/currentPeers:
+    get:
+      tags: [v1]
+      summary: Get connected peers
+      responses:
+        '200':
+          description: Connected peers response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetConnectedPeersResponse'
+
+  # V2 Endpoints
+  /v2/farcaster/followers:
+    get:
+      tags: [v2]
+      summary: Get followers of a user
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+      responses:
+        '200':
+          description: Followers response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowersResponse'
+  /v2/farcaster/following:
+    get:
+      tags: [v2]
+      summary: Get following of a user
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+      responses:
+        '200':
+          description: Following response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowersResponse'
+  /v2/farcaster/channel:
+    get:
+      tags: [v2]
+      summary: Get channel info
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [id, parent_url]
+            default: id
+      responses:
+        '200':
+          description: Channel response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelResponse'
+  /v2/farcaster/channel/member/list:
+    get:
+      tags: [v2]
+      summary: Get members of a channel
+      parameters:
+        - name: channel_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+      responses:
+        '200':
+          description: Channel members response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelMemberListResponse'
+  /v2/farcaster/cast/search:
+    get:
+      tags: [v2]
+      summary: Search casts
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+      responses:
+        '200':
+          description: Cast search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CastsSearchResponse'
+  /v2/farcaster/cast/conversation:
+    get:
+      tags: [v2]
+      summary: Get cast conversation thread
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [hash, url]
+        - name: reply_depth
+          in: query
+          schema:
+            type: integer
+            default: 2
+            maximum: 5
+      responses:
+        '200':
+          description: Conversation response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+  /v2/farcaster/feed/following:
+    get:
+      tags: [v2]
+      summary: Get following feed for a user
+      parameters:
+        - name: fid
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+      responses:
+        '200':
+          description: Feed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+  /v2/farcaster/feed/trending:
+    get:
+      tags: [v2]
+      summary: Get trending feed
+      parameters:
+        - name: time_window
+          in: query
+          schema:
+            type: string
+            default: 24h
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+      responses:
+        '200':
+          description: Feed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+
+components:
+  schemas:
+    # V1 Schemas
+    InfoResponse:
+      type: object
+      properties:
+        dbStats:
+          $ref: '#/components/schemas/DbStats'
+        numShards:
+          type: integer
+        shardInfos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShardInfo'
+        version:
+          type: string
+        peer_id:
+          type: string
+        nextEngineVersionTimestamp:
+          type: integer
+
+    DbStats:
+      type: object
+      properties:
+        numMessages:
+          type: integer
+        numFidRegistrations:
+          type: integer
+        approxSize:
+          type: integer
+
+    ShardInfo:
+      type: object
+      properties:
+        shardId:
+          type: integer
+        maxHeight:
+          type: integer
+        numMessages:
+          type: integer
+        numFidRegistrations:
+          type: integer
+        approxSize:
+          type: integer
+        blockDelay:
+          type: integer
+        mempoolSize:
+          type: integer
+
+    GetFidsResponse:
+      type: object
+      properties:
+        fids:
+          type: array
+          items:
+            type: integer
+        nextPageToken:
+          type: string
+
+    Message:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/MessageData'
+        hash:
+          type: string
+        hashScheme:
+          type: string
+        signature:
+          type: string
+          description: Base64 encoded signature
+        signatureScheme:
+          type: string
+        signer:
+          type: string
+
+    MessageData:
+      type: object
+      properties:
+        type:
+          type: string
+        fid:
+          type: integer
+        timestamp:
+          type: integer
+        network:
+          type: string
+        castAddBody:
+          $ref: '#/components/schemas/CastAddBody'
+        castRemoveBody:
+          $ref: '#/components/schemas/CastRemoveBody'
+        # ... other bodies omitted for brevity but should be included in full spec
+
+    CastAddBody:
+      type: object
+      properties:
+        embedsDeprecated:
+          type: array
+          items:
+            type: string
+        mentions:
+          type: array
+          items:
+            type: integer
+        parentCastId:
+          $ref: '#/components/schemas/CastIdRef'
+        parentUrl:
+          type: string
+        text:
+          type: string
+        embeds:
+          type: array
+          items:
+            anyOf:
+              - type: object
+                properties:
+                  url:
+                    type: string
+              - type: object
+                properties:
+                  castId:
+                    $ref: '#/components/schemas/CastIdRef'
+        mentionsPositions:
+          type: array
+          items:
+            type: integer
+        type:
+          type: string
+
+    CastIdRef:
+      type: object
+      properties:
+        fid:
+          type: integer
+        hash:
+          type: string
+
+    CastRemoveBody:
+      type: object
+      properties:
+        targetHash:
+          type: string
+
+    PagedResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        nextPageToken:
+          type: string
+
+    StorageLimitsResponse:
+      type: object
+      properties:
+        limits:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageLimit'
+        units:
+          type: integer
+        unitDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageUnitDetails'
+        tier_subscriptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TierDetails'
+
+    StorageLimit:
+      type: object
+      properties:
+        storeType:
+          type: integer
+        name:
+          type: string
+        limit:
+          type: integer
+        used:
+          type: integer
+        earliestTimestamp:
+          type: integer
+        earliestHash:
+          type: string
+
+    StorageUnitDetails:
+      type: object
+      properties:
+        unitType:
+          type: integer
+        unitSize:
+          type: integer
+
+    TierDetails:
+      type: object
+      properties:
+        tier_type:
+          type: integer
+        expires_at:
+          type: integer
+
+    UserNameProof:
+      type: object
+      properties:
+        timestamp:
+          type: integer
+        name:
+          type: string
+        owner:
+          type: string
+        signature:
+          type: string
+        fid:
+          type: integer
+        type:
+          type: string
+
+    UsernameProofsResponse:
+      type: object
+      properties:
+        proofs:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserNameProof'
+
+    FidResponse:
+      type: object
+      properties:
+        fid:
+          type: integer
+
+    NameToAddressResponse:
+      type: object
+      properties:
+        fid:
+          type: integer
+        custodyAddress:
+          type: string
+        connectedAddresses:
+          type: array
+          items:
+            type: string
+
+    AddressToFidResponse:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddressMatch'
+
+    AddressMatch:
+      type: object
+      properties:
+        fid:
+          type: integer
+        isCustody:
+          type: boolean
+        isVerified:
+          type: boolean
+
+    ValidationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        message:
+          $ref: '#/components/schemas/Message'
+
+    SubmitBulkMessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            anyOf:
+              - $ref: '#/components/schemas/Message'
+              - $ref: '#/components/schemas/MessageError'
+
+    MessageError:
+      type: object
+      properties:
+        hash:
+          type: string
+        errCode:
+          type: string
+        message:
+          type: string
+
+    OnChainEventResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnChainEvent'
+        nextPageToken:
+          type: string
+
+    OnChainEvent:
+      type: object
+      properties:
+        type:
+          type: integer
+        chainId:
+          type: integer
+        blockNumber:
+          type: integer
+        blockHash:
+          type: string
+        blockTimestamp:
+          type: integer
+        transactionHash:
+          type: string
+        logIndex:
+          type: integer
+        fid:
+          type: integer
+        # ... other fields
+
+    FidAddressTypeResponse:
+      type: object
+      properties:
+        is_custody:
+          type: boolean
+        is_auth:
+          type: boolean
+        is_verified:
+          type: boolean
+
+    EventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubEvent'
+
+    HubEvent:
+      type: object
+      properties:
+        type:
+          type: string
+        id:
+          type: integer
+        # ... other fields
+
+    GetConnectedPeersResponse:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactInfoBody'
+
+    ContactInfoBody:
+      type: object
+      properties:
+        gossip_address:
+          type: string
+        announce_rpc_address:
+          type: string
+        peer_id:
+          type: string
+        snapchain_version:
+          type: string
+        network:
+          type: integer
+        timestamp:
+          type: integer
+        capabilities:
+          type: array
+          items:
+            type: string
+
+    # V2 Schemas
+    User:
+      type: object
+      required: [object, fid, username, custody_address, profile, follower_count, following_count, verifications, verified_addresses]
+      properties:
+        object:
+          type: string
+          enum: [user]
+        fid:
+          type: integer
+        username:
+          type: string
+        display_name:
+          type: string
+        custody_address:
+          type: string
+        pfp_url:
+          type: string
+        profile:
+          $ref: '#/components/schemas/UserProfile'
+        follower_count:
+          type: integer
+        following_count:
+          type: integer
+        verifications:
+          type: array
+          items:
+            type: string
+        verified_addresses:
+          $ref: '#/components/schemas/VerifiedAddresses'
+        viewer_context:
+          $ref: '#/components/schemas/ViewerContext'
+
+    UserProfile:
+      type: object
+      properties:
+        bio:
+          type: object
+          properties:
+            text:
+              type: string
+
+    VerifiedAddresses:
+      type: object
+      properties:
+        eth_addresses:
+          type: array
+          items:
+            type: string
+        sol_addresses:
+          type: array
+          items:
+            type: string
+
+    ViewerContext:
+      type: object
+      properties:
+        following:
+          type: boolean
+        followed_by:
+          type: boolean
+
+    Follower:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [follower]
+        user:
+          $ref: '#/components/schemas/User'
+
+    FollowersResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/Follower'
+        next:
+          $ref: '#/components/schemas/NextCursor'
+
+    Cast:
+      type: object
+      required: [object, hash, author, text, timestamp, embeds, reactions, replies]
+      properties:
+        object:
+          type: string
+          enum: [cast]
+        hash:
+          type: string
+        parent_hash:
+          type: string
+        parent_url:
+          type: string
+        root_parent_url:
+          type: string
+        author:
+          $ref: '#/components/schemas/User'
+        text:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        embeds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Embed'
+        reactions:
+          $ref: '#/components/schemas/CastReactions'
+        replies:
+          $ref: '#/components/schemas/CastReplies'
+        thread_hash:
+          type: string
+        channel:
+          $ref: '#/components/schemas/Channel'
+        viewer_context:
+          $ref: '#/components/schemas/CastViewerContext'
+
+    Embed:
+      oneOf:
+        - type: object
+          properties:
+            url:
+              type: string
+        - type: object
+          properties:
+            cast_id:
+              $ref: '#/components/schemas/CastIdRefV2'
+
+    CastIdRefV2:
+      type: object
+      properties:
+        fid:
+          type: integer
+        hash:
+          type: string
+
+    CastReactions:
+      type: object
+      properties:
+        likes_count:
+          type: integer
+        recasts_count:
+          type: integer
+        likes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionUser'
+        recasts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionUser'
+
+    ReactionUser:
+      type: object
+      properties:
+        fid:
+          type: integer
+        fname:
+          type: string
+
+    CastReplies:
+      type: object
+      properties:
+        count:
+          type: integer
+
+    CastViewerContext:
+      type: object
+      properties:
+        liked:
+          type: boolean
+        recasted:
+          type: boolean
+
+    Channel:
+      type: object
+      required: [object, id, name]
+      properties:
+        object:
+          type: string
+          enum: [channel]
+        id:
+          type: string
+        name:
+          type: string
+        image_url:
+          type: string
+        parent_url:
+          type: string
+        description:
+          type: string
+        follower_count:
+          type: integer
+        member_count:
+          type: integer
+
+    ChannelResponse:
+      type: object
+      properties:
+        channel:
+          $ref: '#/components/schemas/Channel'
+
+    ChannelMember:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [channel_member]
+        user:
+          $ref: '#/components/schemas/User'
+        role:
+          type: string
+
+    ChannelMemberListResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelMember'
+        next:
+          $ref: '#/components/schemas/NextCursor'
+
+    CastsSearchResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            casts:
+              type: array
+              items:
+                $ref: '#/components/schemas/Cast'
+            next:
+              $ref: '#/components/schemas/NextCursor'
+
+    ConversationResponse:
+      type: object
+      properties:
+        conversation:
+          type: object
+          properties:
+            cast:
+              $ref: '#/components/schemas/CastWithReplies'
+
+    CastWithReplies:
+      allOf:
+        - $ref: '#/components/schemas/Cast'
+        - type: object
+          properties:
+            direct_replies:
+              type: array
+              items:
+                $ref: '#/components/schemas/CastWithReplies'
+
+    FeedResponse:
+      type: object
+      properties:
+        casts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cast'
+        next:
+          $ref: '#/components/schemas/NextCursor'
+
+    NextCursor:
+      type: object
+      properties:
+        cursor:
+          type: string

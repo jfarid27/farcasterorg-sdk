@@ -1,0 +1,35 @@
+{
+  "name": "@hypersnap/sdk",
+  "version": "1.0.0",
+  "description": "HyperSnap TypeScript SDK for Farcaster Hub and API compatibility",
+  "main": "./dist/mod.js",
+  "module": "./dist/mod.js",
+  "types": "./dist/mod.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/mod.ts",
+      "types": "./src/mod.ts",
+      "node": {
+        "import": "./dist/mod.js",
+        "types": "./dist/mod.d.ts"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}

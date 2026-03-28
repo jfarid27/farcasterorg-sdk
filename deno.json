@@ -1,0 +1,16 @@
+{
+  "name": "@hypersnap/sdk",
+  "version": "1.0.0",
+  "exports": "./src/mod.ts",
+  "imports": {
+    "axios": "npm:axios@^1.7.0"
+  },
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "dom.asynciterable", "deno.ns"],
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "module": "esnext",
+    "target": "esnext"
+  }
+}

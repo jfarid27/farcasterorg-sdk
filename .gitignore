@@ -1,0 +1,45 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# TypeScript
+dist/
+*.tsbuildinfo
+
+# Deno
+deno.lock
+.deno/
+
+# Rust (subs/hypersnap)
+subs/hypersnap/target/
+subs/hypersnap/debug/
+**/*.rs.bk
+*.pdb
+
+# Logs
+logs/
+*.log
+
+# Databases
+*.db
+*.sqlite
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project Specific
+nodes/
+.rocks/
+.rocks.*/
+grafana/data/
