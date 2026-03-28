@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.1.1
 info:
   title: HyperSnap API
   description: API for HyperSnap Farcaster Hub and compatible V2 endpoints.
@@ -17,6 +17,7 @@ paths:
     get:
       tags: [v1]
       summary: Get hub info
+      description: Retrieve general information about the Hub, including database statistics, shard information, version, and peer ID.
       responses:
         '200':
           description: Hub info response
@@ -28,22 +29,27 @@ paths:
     get:
       tags: [v1]
       summary: Get registered FIDs
+      description: Retrieve a paged list of all FIDs registered on the network for a specific shard.
       parameters:
         - name: shard_id
           in: query
           required: true
+          description: The ID of the shard to query
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of FIDs to return per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Token for pagination
           schema:
             type: string
         - name: reverse
           in: query
+          description: Whether to return FIDs in reverse order
           schema:
             type: boolean
       responses:
@@ -57,15 +63,18 @@ paths:
     get:
       tags: [v1]
       summary: Get cast by FID and hash
+      description: Retrieve a specific cast message by the author's FID and the cast's hash.
       parameters:
         - name: fid
           in: query
           required: true
+          description: The author's FID
           schema:
             type: integer
         - name: hash
           in: query
           required: true
+          description: The hex-encoded hash of the cast
           schema:
             type: string
       responses:
@@ -79,30 +88,37 @@ paths:
     get:
       tags: [v1]
       summary: Get casts by FID
+      description: Retrieve a paged list of casts authored by a specific FID, optionally filtered by timestamp.
       parameters:
         - name: fid
           in: query
           required: true
+          description: The author's FID
           schema:
             type: integer
         - name: start_timestamp
           in: query
+          description: Optional start timestamp (Farcaster epoch)
           schema:
             type: integer
         - name: stop_timestamp
           in: query
+          description: Optional stop timestamp (Farcaster epoch)
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -116,22 +132,27 @@ paths:
     get:
       tags: [v1]
       summary: Get casts by mention
+      description: Retrieve a paged list of casts that mention a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: The mentioned FID
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -145,29 +166,36 @@ paths:
     get:
       tags: [v1]
       summary: Get casts by parent
+      description: Retrieve a paged list of casts that are replies to a specific parent cast or parent URL.
       parameters:
         - name: fid
           in: query
+          description: The parent cast author's FID
           schema:
             type: integer
         - name: hash
           in: query
+          description: The parent cast's hex-encoded hash
           schema:
             type: string
         - name: url
           in: query
+          description: The parent URL
           schema:
             type: string
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -181,27 +209,33 @@ paths:
     get:
       tags: [v1]
       summary: Get reaction by ID
+      description: Retrieve a specific reaction message by reactor FID and target.
       parameters:
         - name: fid
           in: query
           required: true
+          description: Reactor FID
           schema:
             type: integer
         - name: reaction_type
           in: query
           required: true
+          description: Reaction type (1=Like, 2=Recast)
           schema:
             type: integer
         - name: target_fid
           in: query
+          description: Target author FID
           schema:
             type: integer
         - name: target_hash
           in: query
+          description: Target cast hash
           schema:
             type: string
         - name: target_url
           in: query
+          description: Target URL
           schema:
             type: string
       responses:
@@ -215,27 +249,33 @@ paths:
     get:
       tags: [v1]
       summary: Get reactions by FID
+      description: Retrieve a paged list of reactions authored by a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: Reactor FID
           schema:
             type: integer
         - name: reaction_type
           in: query
           required: true
+          description: Reaction type filter
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -249,31 +289,38 @@ paths:
     get:
       tags: [v1]
       summary: Get reactions by cast
+      description: Retrieve a paged list of reactions for a specific cast.
       parameters:
         - name: target_fid
           in: query
           required: true
+          description: Target author FID
           schema:
             type: integer
         - name: target_hash
           in: query
           required: true
+          description: Target cast hash
           schema:
             type: string
         - name: reaction_type
           in: query
+          description: Optional reaction type filter
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -287,26 +334,32 @@ paths:
     get:
       tags: [v1]
       summary: Get reactions by target URL
+      description: Retrieve a paged list of reactions for a specific target URL.
       parameters:
         - name: url
           in: query
           required: true
+          description: Target URL
           schema:
             type: string
         - name: reaction_type
           in: query
+          description: Optional reaction type filter
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -320,19 +373,23 @@ paths:
     get:
       tags: [v1]
       summary: Get link by ID
+      description: Retrieve a specific link message by creator, type, and target.
       parameters:
         - name: fid
           in: query
           required: true
+          description: Creator FID
           schema:
             type: integer
         - name: link_type
           in: query
           required: true
+          description: Link type (e.g., "follow")
           schema:
             type: string
         - name: target_fid
           in: query
+          description: Target FID
           schema:
             type: integer
       responses:
@@ -346,26 +403,32 @@ paths:
     get:
       tags: [v1]
       summary: Get links by FID
+      description: Retrieve a paged list of links authored by a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: Creator FID
           schema:
             type: integer
         - name: link_type
           in: query
+          description: Optional link type filter
           schema:
             type: string
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -379,26 +442,32 @@ paths:
     get:
       tags: [v1]
       summary: Get links by target FID
+      description: Retrieve a paged list of links targeting a specific FID (e.g., followers).
       parameters:
         - name: target_fid
           in: query
           required: true
+          description: Target FID
           schema:
             type: integer
         - name: link_type
           in: query
+          description: Optional link type filter
           schema:
             type: string
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -412,22 +481,27 @@ paths:
     get:
       tags: [v1]
       summary: Get user data by FID
+      description: Retrieve user metadata (pfp, bio, display name) for a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -441,10 +515,12 @@ paths:
     get:
       tags: [v1]
       summary: Get storage limits by FID
+      description: Retrieve allocated storage limits and usage for a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
       responses:
@@ -458,10 +534,12 @@ paths:
     get:
       tags: [v1]
       summary: Get username proof by name
+      description: Retrieve ownership proof for a specific username.
       parameters:
         - name: name
           in: query
           required: true
+          description: Username
           schema:
             type: string
       responses:
@@ -475,10 +553,12 @@ paths:
     get:
       tags: [v1]
       summary: Get username proofs by FID
+      description: Retrieve all username proofs owned by a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: Owner FID
           schema:
             type: integer
       responses:
@@ -492,14 +572,17 @@ paths:
     get:
       tags: [v1]
       summary: Get FID by name
+      description: Resolve a username to its associated FID.
       parameters:
         - name: name
           in: query
           required: true
+          description: Username
           schema:
             type: string
         - name: type
           in: query
+          description: Username type (fname, ens, basename)
           schema:
             type: string
       responses:
@@ -513,14 +596,17 @@ paths:
     get:
       tags: [v1]
       summary: Get addresses by name
+      description: Look up custody and verified addresses associated with a username.
       parameters:
         - name: name
           in: query
           required: true
+          description: Username
           schema:
             type: string
         - name: type
           in: query
+          description: Optional name type
           schema:
             type: string
       responses:
@@ -534,10 +620,12 @@ paths:
     get:
       tags: [v1]
       summary: Get FID by address
+      description: Resolve an Ethereum or Solana address to its associated FIDs.
       parameters:
         - name: address
           in: query
           required: true
+          description: Address string
           schema:
             type: string
       responses:
@@ -551,6 +639,7 @@ paths:
     post:
       tags: [v1]
       summary: Validate a message (binary)
+      description: Submit a binary message for validation without merging.
       requestBody:
         content:
           application/octet-stream:
@@ -568,6 +657,7 @@ paths:
     post:
       tags: [v1]
       summary: Submit a message (binary)
+      description: Submit a binary message to be merged into the Hub.
       requestBody:
         content:
           application/octet-stream:
@@ -585,6 +675,7 @@ paths:
     post:
       tags: [v1]
       summary: Submit multiple messages (binary)
+      description: Batch submit binary messages to the Hub.
       requestBody:
         content:
           application/octet-stream:
@@ -602,22 +693,27 @@ paths:
     get:
       tags: [v1]
       summary: Get verifications by FID
+      description: Retrieve verified external addresses for a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -631,10 +727,12 @@ paths:
     get:
       tags: [v1]
       summary: Get on-chain signers by FID
+      description: Retrieve authorized on-chain signers for a specific FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
       responses:
@@ -648,27 +746,33 @@ paths:
     get:
       tags: [v1]
       summary: Get on-chain events by FID
+      description: Retrieve on-chain events (ID register, storage rent) for an FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
         - name: event_type
           in: query
           required: true
+          description: Type of event to filter by
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -682,10 +786,12 @@ paths:
     get:
       tags: [v1]
       summary: Get ID registry event by address
+      description: Retrieve the ID registry event for a specific Ethereum address.
       parameters:
         - name: address
           in: query
           required: true
+          description: Ethereum address
           schema:
             type: string
       responses:
@@ -699,15 +805,18 @@ paths:
     get:
       tags: [v1]
       summary: Get address type for FID
+      description: Verify address relationship status for an FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
         - name: address
           in: query
           required: true
+          description: Address string
           schema:
             type: string
       responses:
@@ -721,29 +830,36 @@ paths:
     get:
       tags: [v1]
       summary: Get hub events
+      description: Poll or stream events occurring on the Hub.
       parameters:
         - name: from_event_id
           in: query
+          description: Start event ID
           schema:
             type: integer
         - name: shard_index
           in: query
+          description: Shard index
           schema:
             type: integer
         - name: stop_id
           in: query
+          description: Stop event ID
           schema:
             type: integer
         - name: page_size
           in: query
+          description: Number of items per page
           schema:
             type: integer
         - name: page_token
           in: query
+          description: Pagination token
           schema:
             type: string
         - name: reverse
           in: query
+          description: Reverse order of results
           schema:
             type: boolean
       responses:
@@ -757,15 +873,18 @@ paths:
     get:
       tags: [v1]
       summary: Get hub event by ID
+      description: Retrieve a specific Hub event.
       parameters:
         - name: event_id
           in: query
           required: true
+          description: Event ID
           schema:
             type: integer
         - name: shard_index
           in: query
           required: true
+          description: Shard index
           schema:
             type: integer
       responses:
@@ -779,6 +898,7 @@ paths:
     get:
       tags: [v1]
       summary: Get connected peers
+      description: List currently connected gossip network peers.
       responses:
         '200':
           description: Connected peers response
@@ -792,18 +912,22 @@ paths:
     get:
       tags: [v2]
       summary: Get followers of a user
+      description: Retrieve a paged list of followers for an FID (V2 compatible).
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
         - name: cursor
           in: query
+          description: Pagination cursor
           schema:
             type: string
         - name: limit
           in: query
+          description: Items per page
           schema:
             type: integer
             default: 25
@@ -819,18 +943,22 @@ paths:
     get:
       tags: [v2]
       summary: Get following of a user
+      description: Retrieve a paged list of users followed by an FID (V2 compatible).
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
         - name: cursor
           in: query
+          description: Pagination cursor
           schema:
             type: string
         - name: limit
           in: query
+          description: Items per page
           schema:
             type: integer
             default: 25
@@ -846,14 +974,17 @@ paths:
     get:
       tags: [v2]
       summary: Get channel info
+      description: Retrieve metadata for a Farcaster channel.
       parameters:
         - name: id
           in: query
           required: true
+          description: Channel ID or parent URL
           schema:
             type: string
         - name: type
           in: query
+          description: Identifier type
           schema:
             type: string
             enum: [id, parent_url]
@@ -869,18 +1000,22 @@ paths:
     get:
       tags: [v2]
       summary: Get members of a channel
+      description: Retrieve a paged list of channel members.
       parameters:
         - name: channel_id
           in: query
           required: true
+          description: Channel ID
           schema:
             type: string
         - name: cursor
           in: query
+          description: Pagination cursor
           schema:
             type: string
         - name: limit
           in: query
+          description: Items per page
           schema:
             type: integer
             default: 25
@@ -896,10 +1031,12 @@ paths:
     get:
       tags: [v2]
       summary: Search casts
+      description: Text search for casts across the network.
       parameters:
         - name: q
           in: query
           required: true
+          description: Search query
           schema:
             type: string
         - name: cursor
@@ -908,6 +1045,7 @@ paths:
             type: string
         - name: limit
           in: query
+          description: Items per page
           schema:
             type: integer
             default: 25
@@ -923,20 +1061,24 @@ paths:
     get:
       tags: [v2]
       summary: Get cast conversation thread
+      description: Retrieve a full conversation thread.
       parameters:
         - name: identifier
           in: query
           required: true
+          description: Cast hash or URL
           schema:
             type: string
         - name: type
           in: query
           required: true
+          description: Identifier type
           schema:
             type: string
             enum: [hash, url]
         - name: reply_depth
           in: query
+          description: Max reply depth
           schema:
             type: integer
             default: 2
@@ -952,18 +1094,22 @@ paths:
     get:
       tags: [v2]
       summary: Get following feed for a user
+      description: Retrieve following feed for an FID.
       parameters:
         - name: fid
           in: query
           required: true
+          description: User FID
           schema:
             type: integer
         - name: cursor
           in: query
+          description: Pagination cursor
           schema:
             type: string
         - name: limit
           in: query
+          description: Items per page
           schema:
             type: integer
             default: 25
@@ -979,18 +1125,22 @@ paths:
     get:
       tags: [v2]
       summary: Get trending feed
+      description: Retrieve network-wide trending feed.
       parameters:
         - name: time_window
           in: query
+          description: Trending time window
           schema:
             type: string
             default: 24h
         - name: cursor
           in: query
+          description: Pagination cursor
           schema:
             type: string
         - name: limit
           in: query
+          description: Items per page
           schema:
             type: integer
             default: 25
