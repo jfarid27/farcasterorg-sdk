@@ -6,18 +6,18 @@ TypeScript SDK for HyperSnap Farcaster Hub and API compatibility.
 
 ### Node.js
 ```bash
-npm install axios @hypersnap/sdk
+npm install jsr:@jfarid27/farcaster-sdk@<version-number>
 ```
 
 ### Deno
 ```typescript
-import { HyperSnapClient } from "https://raw.githubusercontent.com/user/hypersnap-sdk/main/src/mod.ts";
+import { HyperSnapClient } from "jsr:@jfarid27/farcaster-sdk";
 ```
 
 ## Usage
 
 ```typescript
-import { HyperSnapClient } from "@hypersnap/sdk";
+import { HyperSnapClient } from "jsr:@jfarid27/farcaster-sdk";
 
 const client = new HyperSnapClient("http://localhost:8080");
 

@@ -1,5 +1,5 @@
 {
-  "name": "@hypersnap/sdk",
+  "name": "@jfarid27/farcaster-sdk",
   "version": "0.0.1",
   "exports": "./src/mod.ts",
   "imports": {
