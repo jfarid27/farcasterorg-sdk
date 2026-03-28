@@ -1,6 +1,7 @@
 {
   "name": "@jfarid27/farcaster-sdk",
   "version": "0.0.3",
+  "license": "AGPL-3.0",
   "exports": "./src/mod.ts",
   "imports": {
     "axios": "npm:axios@^1.7.0"
