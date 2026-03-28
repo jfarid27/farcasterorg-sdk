@@ -4,6 +4,13 @@ import * as Types from "./types.ts";
 /**
  * HyperSnapClient is the main entry point for the HyperSnap SDK.
  * It provides access to both V1 (Hubble-compatible) and V2 (Farcaster API compatibility) namespaces.
+ *
+ * ### Sharding Logic
+ * HyperSnap utilizes a sharded architecture. This client automatically handles shard calculation
+ * and routing so users don't have to deal with failures due to sharding.
+ *
+ * Calculation Formula:
+ * `(SHA256(FID_BE_BYTES).take(4).to_u32_be() % total_shards) + 1`
  */
 export class HyperSnapClient {
   private axios: AxiosInstance;
@@ -11,6 +18,8 @@ export class HyperSnapClient {
   public v1: V1Namespace;
   /** Namespace for Farcaster API V2 compatibility APIs */
   public v2: V2Namespace;
+
+  private _numShards: number | null = null;
 
   /**
    * Create a new HyperSnapClient.
@@ -23,8 +32,67 @@ export class HyperSnapClient {
       ...config,
     });
 
-    this.v1 = new V1Namespace(this.axios);
+    this.v1 = new V1Namespace(this.axios, this);
     this.v2 = new V2Namespace(this.axios);
+  }
+
+  /**
+   * Cryptographically calculate the shard ID for a given FID.
+   *
+   * Logic:
+   * 1. FID is converted to an 8-byte big-endian Uint64.
+   * 2. SHA-256 hash is computed.
+   * 3. The first 4 bytes are interpreted as a big-endian Uint32.
+   * 4. Shard = (hashUint32 % total_shards) + 1.
+   *
+   * @param fid The Farcaster ID to route.
+   * @returns A promise that resolves to the shard ID (1 to total_shards).
+   */
+  async getShardForFid(fid: number): Promise<number> {
+    if (this._numShards === null) {
+      await this.refreshShardInfo();
+    }
+
+    const numShards = this._numShards || 1;
+    if (numShards === 1) return 1;
+
+    // Convert fid to 8-byte big-endian buffer (uint64)
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    view.setBigUint64(0, BigInt(fid), false); // false = big-endian
+
+    // Calculate SHA-256 hash using Web Crypto API
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = new Uint8Array(hashBuffer);
+
+    // Take first 4 bytes as u32 (big-endian)
+    const hashU32 = (hashArray[0] << 24) | (hashArray[1] << 16) | (hashArray[2] << 8) | hashArray[3];
+
+    // Ensure unsigned result before modulo
+    const unsignedHashU32 = hashU32 >>> 0;
+    return (unsignedHashU32 % numShards) + 1;
+  }
+
+  /**
+   * Fetch the latest shard count from the node and update the local cache.
+   */
+  async refreshShardInfo(): Promise<void> {
+    const { data } = await this.axios.get<Types.V1.InfoResponse>("/v1/info");
+    this._numShards = data.numShards;
+  }
+
+  /**
+   * Manually set the number of shards if known upfront.
+   */
+  set numShards(value: number) {
+    this._numShards = value;
+  }
+
+  /**
+   * Get the current cached number of shards.
+   */
+  get numShards(): number | null {
+    return this._numShards;
   }
 }
 
@@ -45,18 +113,18 @@ class V1Namespace {
   /** APIs for Hub network information */
   public network: NetworkV1;
 
-  constructor(client: AxiosInstance) {
-    this.casts = new CastsV1(client);
-    this.reactions = new ReactionsV1(client);
-    this.links = new LinksV1(client);
-    this.users = new UsersV1(client);
-    this.events = new EventsV1(client);
-    this.network = new NetworkV1(client);
+  constructor(client: AxiosInstance, private parent: HyperSnapClient) {
+    this.casts = new CastsV1(client, parent);
+    this.reactions = new ReactionsV1(client, parent);
+    this.links = new LinksV1(client, parent);
+    this.users = new UsersV1(client, parent);
+    this.events = new EventsV1(client, parent);
+    this.network = new NetworkV1(client, parent);
   }
 
   /**
    * Get general information about the Hub.
-   * @returns A promise that resolves to the Hub info response
+   * Caches the shard count for future requests.
    */
   async getInfo(): Promise<Types.V1.InfoResponse> {
     const res = await this.network.getInfo();
@@ -68,13 +136,11 @@ class V1Namespace {
  * V1 APIs for interacting with Casts.
  */
 class CastsV1 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
 
   /**
    * Retrieve a specific cast by its FID and hash.
-   * @param fid The FID of the cast author
-   * @param hash The hex-encoded hash of the cast
-   * @returns A promise that resolves to the cast message
+   * Sharding: The node routes this internally based on FID.
    */
   async getById(fid: number, hash: string): Promise<Types.V1.Message> {
     const { data } = await this.client.get("/v1/castById", {
@@ -85,8 +151,7 @@ class CastsV1 {
 
   /**
    * Retrieve all casts authored by a specific FID.
-   * @param params Query parameters including FID, pagination, and time range
-   * @returns A promise that resolves to a paged response of cast messages
+   * Sharding: The node routes this internally based on FID.
    */
   async getByFid(params: {
     fid: number;
@@ -96,14 +161,15 @@ class CastsV1 {
     page_token?: string;
     reverse?: boolean;
   }): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/castsByFid", { params });
+    const { data } = await this.client.get("/v1/castsByFid", {
+      params,
+    });
     return data;
   }
 
   /**
    * Retrieve all casts that mention a specific FID.
-   * @param fid The FID that is mentioned
-   * @returns A promise that resolves to a paged response of cast messages
+   * Sharding: The node routes this internally based on FID.
    */
   async getByMention(fid: number): Promise<Types.V1.PagedResponse> {
     const { data } = await this.client.get("/v1/castsByMention", {
@@ -114,15 +180,16 @@ class CastsV1 {
 
   /**
    * Retrieve all casts that are replies to a specific parent cast or URL.
-   * @param params Query parameters including parent FID, hash, or URL
-   * @returns A promise that resolves to a paged response of cast messages
+   * Sharding: If parent has an FID, the node routes internally.
    */
   async getByParent(params: {
     fid?: number;
     hash?: string;
     url?: string;
   }): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/castsByParent", { params });
+    const { data } = await this.client.get("/v1/castsByParent", {
+      params,
+    });
     return data;
   }
 }
@@ -131,12 +198,11 @@ class CastsV1 {
  * V1 APIs for interacting with Reactions.
  */
 class ReactionsV1 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
 
   /**
-   * Retrieve a specific reaction by FID and target.
-   * @param params Query parameters including FID, reaction type, and target FID/hash/URL
-   * @returns A promise that resolves to the reaction message
+   * Retrieve a specific reaction.
+   * Sharding: The node routes this internally based on FID.
    */
   async getById(params: {
     fid: number;
@@ -151,9 +217,7 @@ class ReactionsV1 {
 
   /**
    * Retrieve all reactions authored by a specific FID.
-   * @param fid The FID of the reactor
-   * @param reaction_type The type of reaction (e.g., 1 for Like, 2 for Recast)
-   * @returns A promise that resolves to a paged response of reaction messages
+   * Sharding: The node routes this internally based on FID.
    */
   async getByFid(fid: number, reaction_type: number): Promise<Types.V1.PagedResponse> {
     const { data } = await this.client.get("/v1/reactionsByFid", {
@@ -164,9 +228,7 @@ class ReactionsV1 {
 
   /**
    * Retrieve all reactions for a specific cast.
-   * @param target_fid The FID of the cast author
-   * @param target_hash The hex-encoded hash of the cast
-   * @returns A promise that resolves to a paged response of reaction messages
+   * Sharding: The node routes this internally based on target_fid.
    */
   async getByCast(target_fid: number, target_hash: string): Promise<Types.V1.PagedResponse> {
     const { data } = await this.client.get("/v1/reactionsByCast", {
@@ -177,17 +239,14 @@ class ReactionsV1 {
 }
 
 /**
- * V1 APIs for interacting with Links (e.g., follows).
+ * V1 APIs for interacting with Links.
  */
 class LinksV1 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
 
   /**
-   * Retrieve a specific link by FID, type, and target.
-   * @param fid The FID of the link creator
-   * @param link_type The type of link (e.g., "follow")
-   * @param target_fid The FID of the link target
-   * @returns A promise that resolves to the link message
+   * Retrieve a specific link.
+   * Sharding: The node routes this internally based on FID.
    */
   async getById(fid: number, link_type: string, target_fid?: number): Promise<Types.V1.Message> {
     const { data } = await this.client.get("/v1/linkById", {
@@ -198,9 +257,7 @@ class LinksV1 {
 
   /**
    * Retrieve all links authored by a specific FID.
-   * @param fid The FID of the link creator
-   * @param link_type Optional filter for link type
-   * @returns A promise that resolves to a paged response of link messages
+   * Sharding: The node routes this internally based on FID.
    */
   async getByFid(fid: number, link_type?: string): Promise<Types.V1.PagedResponse> {
     const { data } = await this.client.get("/v1/linksByFid", {
@@ -214,12 +271,11 @@ class LinksV1 {
  * V1 APIs for interacting with Users and Storage.
  */
 class UsersV1 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
 
   /**
    * Retrieve user data (pfp, bio, etc.) for a specific FID.
-   * @param fid The FID of the user
-   * @returns A promise that resolves to a paged response of user data messages
+   * Sharding: The node routes this internally based on FID.
    */
   async getDataByFid(fid: number): Promise<Types.V1.PagedResponse> {
     const { data } = await this.client.get("/v1/userDataByFid", { params: { fid } });
@@ -228,8 +284,7 @@ class UsersV1 {
 
   /**
    * Retrieve storage limits and usage for a specific FID.
-   * @param fid The FID of the user
-   * @returns A promise that resolves to the storage limits response
+   * Sharding: The node routes this internally based on FID.
    */
   async getStorageLimits(fid: number): Promise<Types.V1.StorageLimitsResponse> {
     const { data } = await this.client.get("/v1/storageLimitsByFid", {
@@ -239,10 +294,7 @@ class UsersV1 {
   }
 
   /**
-   * Look up an FID by a username (fname, ens, or basename).
-   * @param name The username to look up
-   * @param type Optional username type ("fname", "ens", or "basename")
-   * @returns A promise that resolves to the FID response
+   * Look up an FID by a username.
    */
   async getFidByName(name: string, type?: string): Promise<Types.V1.FidResponse> {
     const { data } = await this.client.get("/v1/fidByName", {
@@ -252,10 +304,7 @@ class UsersV1 {
   }
 
   /**
-   * Retrieve connected addresses (custody and verified) for a username.
-   * @param name The username to look up
-   * @param type Optional username type
-   * @returns A promise that resolves to the addresses response
+   * Retrieve connected addresses for a username.
    */
   async getAddressesByName(name: string, type?: string): Promise<Types.V1.NameToAddressResponse> {
     const { data } = await this.client.get("/v1/addressesByName", {
@@ -265,14 +314,31 @@ class UsersV1 {
   }
 
   /**
-   * Look up FIDs associated with a specific Ethereum or Solana address.
-   * @param address The hex-encoded (ETH) or base58-encoded (SOL) address
-   * @returns A promise that resolves to the address-to-FID mapping
+   * Look up FIDs associated with an Ethereum or Solana address.
    */
   async getFidByAddress(address: string): Promise<Types.V1.AddressToFidResponse> {
     const { data } = await this.client.get("/v1/fidByAddress", {
       params: { address },
     });
+    return data;
+  }
+
+  /**
+   * Retrieve a paged list of all FIDs registered on the network for a specific shard.
+   *
+   * ### Sharding Dependency
+   * This endpoint **requires** a shard_id. Use `client.getShardForFid(fid)` to find
+   * the shard for a specific user, or iterate from 1 to `client.numShards` to crawl the network.
+   *
+   * @param params Query parameters including shard_id (Required).
+   */
+  async getFids(params: {
+    shard_id: number;
+    page_size?: number;
+    page_token?: string;
+    reverse?: boolean;
+  }): Promise<Types.V1.GetFidsResponse> {
+    const { data } = await this.client.get("/v1/fids", { params });
     return data;
   }
 }
@@ -281,16 +347,15 @@ class UsersV1 {
  * V1 APIs for interacting with Hub Events.
  */
 class EventsV1 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
 
   /**
-   * Stream or poll hub events starting from a specific event ID.
-   * @param params Query parameters including start ID, shard index, and stop ID
-   * @returns A promise that resolves to the events response
+   * Stream or poll hub events for a specific shard.
+   * @param params Query parameters including shard_index (1 to numShards).
    */
   async getEvents(params: {
     from_event_id?: number;
-    shard_index?: number;
+    shard_index: number;
     stop_id?: number;
   }): Promise<Types.V1.EventsResponse> {
     const { data } = await this.client.get("/v1/events", { params });
@@ -299,9 +364,6 @@ class EventsV1 {
 
   /**
    * Retrieve a specific hub event by its ID and shard index.
-   * @param event_id The ID of the event
-   * @param shard_index The shard index where the event occurred
-   * @returns A promise that resolves to the hub event
    */
   async getEventById(event_id: number, shard_index: number): Promise<Types.V1.HubEvent> {
     const { data } = await this.client.get("/v1/eventById", {
@@ -315,20 +377,20 @@ class EventsV1 {
  * V1 APIs for Hub network information.
  */
 class NetworkV1 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
 
   /**
-   * Get general information about the Hub (version, stats, etc.).
-   * @returns A promise that resolves to the Hub info response
+   * Get general information about the Hub.
+   * This updates the client's internal shard count.
    */
   async getInfo(): Promise<Types.V1.InfoResponse> {
     const { data } = await this.client.get("/v1/info");
+    this.parent.numShards = data.numShards;
     return data;
   }
 
   /**
    * Retrieve the list of currently connected gossip peers.
-   * @returns A promise that resolves to the connected peers response
    */
   async getPeers(): Promise<Types.V1.GetConnectedPeersResponse> {
     const { data } = await this.client.get("/v1/currentPeers");
@@ -340,15 +402,10 @@ class NetworkV1 {
  * Namespace for Farcaster API V2 compatibility APIs.
  */
 class V2Namespace {
-  /** APIs for social graph (followers/following) */
   public social: SocialV2;
-  /** APIs for Channels */
   public channels: ChannelsV2;
-  /** APIs for Cast search */
   public search: SearchV2;
-  /** APIs for Conversation threads */
   public conversations: ConversationsV2;
-  /** APIs for Content Feeds */
   public feeds: FeedsV2;
 
   constructor(client: AxiosInstance) {
@@ -360,149 +417,54 @@ class V2Namespace {
   }
 }
 
-/**
- * V2 APIs for social graph (followers/following).
- */
 class SocialV2 {
   constructor(private client: AxiosInstance) {}
-
-  /**
-   * Get a paged list of followers for a specific user.
-   * @param fid The FID of the user
-   * @param cursor Optional pagination cursor
-   * @param limit Optional limit (default 25, max 100)
-   * @returns A promise that resolves to the followers response
-   */
   async getFollowers(fid: number, cursor?: string, limit?: number): Promise<Types.V2.FollowersResponse> {
-    const { data } = await this.client.get("/v2/farcaster/followers", {
-      params: { fid, cursor, limit },
-    });
+    const { data } = await this.client.get("/v2/farcaster/followers", { params: { fid, cursor, limit } });
     return data;
   }
-
-  /**
-   * Get a paged list of users that a specific user is following.
-   * @param fid The FID of the user
-   * @param cursor Optional pagination cursor
-   * @param limit Optional limit (default 25, max 100)
-   * @returns A promise that resolves to the followers response (following list)
-   */
   async getFollowing(fid: number, cursor?: string, limit?: number): Promise<Types.V2.FollowersResponse> {
-    const { data } = await this.client.get("/v2/farcaster/following", {
-      params: { fid, cursor, limit },
-    });
+    const { data } = await this.client.get("/v2/farcaster/following", { params: { fid, cursor, limit } });
     return data;
   }
 }
 
-/**
- * V2 APIs for Channels.
- */
 class ChannelsV2 {
   constructor(private client: AxiosInstance) {}
-
-  /**
-   * Get information about a specific channel.
-   * @param id The channel ID or parent URL
-   * @param type The type of identifier ("id" or "parent_url")
-   * @returns A promise that resolves to the channel response
-   */
   async getInfo(id: string, type: "id" | "parent_url" = "id"): Promise<Types.V2.ChannelResponse> {
-    const { data } = await this.client.get("/v2/farcaster/channel", {
-      params: { id, type },
-    });
+    const { data } = await this.client.get("/v2/farcaster/channel", { params: { id, type } });
     return data;
   }
-
-  /**
-   * Get a paged list of members in a specific channel.
-   * @param channel_id The ID of the channel
-   * @param cursor Optional pagination cursor
-   * @param limit Optional limit
-   * @returns A promise that resolves to the channel member list response
-   */
   async getMembers(channel_id: string, cursor?: string, limit?: number): Promise<Types.V2.ChannelMemberListResponse> {
-    const { data } = await this.client.get("/v2/farcaster/channel/member/list", {
-      params: { channel_id, cursor, limit },
-    });
+    const { data } = await this.client.get("/v2/farcaster/channel/member/list", { params: { channel_id, cursor, limit } });
     return data;
   }
 }
 
-/**
- * V2 APIs for Cast search.
- */
 class SearchV2 {
   constructor(private client: AxiosInstance) {}
-
-  /**
-   * Search for casts using a text query.
-   * @param q The search query string
-   * @param cursor Optional pagination cursor
-   * @param limit Optional limit
-   * @returns A promise that resolves to the cast search response
-   */
   async searchCasts(q: string, cursor?: string, limit?: number): Promise<Types.V2.CastsSearchResponse> {
-    const { data } = await this.client.get("/v2/farcaster/cast/search", {
-      params: { q, cursor, limit },
-    });
+    const { data } = await this.client.get("/v2/farcaster/cast/search", { params: { q, cursor, limit } });
     return data;
   }
 }
 
-/**
- * V2 APIs for Conversation threads.
- */
 class ConversationsV2 {
   constructor(private client: AxiosInstance) {}
-
-  /**
-   * Retrieve a full conversation thread starting from a specific cast.
-   * @param identifier The hex-encoded hash or Warpcast URL of the cast
-   * @param type The type of identifier ("hash" or "url")
-   * @param reply_depth Optional depth of replies to fetch (max 5)
-   * @returns A promise that resolves to the conversation response
-   */
   async getConversation(identifier: string, type: "hash" | "url", reply_depth?: number): Promise<Types.V2.ConversationResponse> {
-    const { data } = await this.client.get("/v2/farcaster/cast/conversation", {
-      params: { identifier, type, reply_depth },
-    });
+    const { data } = await this.client.get("/v2/farcaster/cast/conversation", { params: { identifier, type, reply_depth } });
     return data;
   }
 }
 
-/**
- * V2 APIs for Content Feeds.
- */
 class FeedsV2 {
   constructor(private client: AxiosInstance) {}
-
-  /**
-   * Get the following feed for a specific user (casts from people they follow).
-   * @param fid The FID of the user
-   * @param cursor Optional pagination cursor
-   * @param limit Optional limit
-   * @returns A promise that resolves to the feed response
-   */
   async getFollowingFeed(fid: number, cursor?: string, limit?: number): Promise<Types.V2.FeedResponse> {
-    const { data } = await this.client.get("/v2/farcaster/feed/following", {
-      params: { fid, cursor, limit },
-    });
+    const { data } = await this.client.get("/v2/farcaster/feed/following", { params: { fid, cursor, limit } });
     return data;
   }
-
-  /**
-   * Get the trending feed of high-engagement casts.
-   * @param time_window Optional time window for trending (e.g., "24h", "7d")
-   * @param cursor Optional pagination cursor
-   * @param limit Optional limit
-   * @returns A promise that resolves to the feed response
-   */
   async getTrendingFeed(time_window?: string, cursor?: string, limit?: number): Promise<Types.V2.FeedResponse> {
-    const { data } = await this.client.get("/v2/farcaster/feed/trending", {
-      params: { time_window, cursor, limit },
-    });
+    const { data } = await this.client.get("/v2/farcaster/feed/trending", { params: { time_window, cursor, limit } });
     return data;
   }
 }
-
