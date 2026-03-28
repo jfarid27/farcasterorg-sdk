@@ -1,0 +1,3 @@
+[submodule "subs/hypersnap"]
+	path = subs/hypersnap
+	url = https://github.com/farcasterorg/hypersnap
