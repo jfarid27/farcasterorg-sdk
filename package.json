@@ -1,6 +1,6 @@
 {
   "name": "@hypersnap/sdk",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "HyperSnap TypeScript SDK for Farcaster Hub and API compatibility",
   "main": "./dist/mod.js",
   "module": "./dist/mod.js",

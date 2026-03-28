@@ -1,6 +1,6 @@
 {
   "name": "@hypersnap/sdk",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "exports": "./src/mod.ts",
   "imports": {
     "axios": "npm:axios@^1.7.0"
