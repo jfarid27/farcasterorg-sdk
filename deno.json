@@ -1,6 +1,6 @@
 {
   "name": "@jfarid27/farcaster-sdk",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "AGPL-3.0-or-later",
   "exports": "./src/mod.ts",
   "nodeModulesDir": "auto",
