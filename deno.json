@@ -3,15 +3,24 @@
   "version": "0.0.3",
   "license": "AGPL-3.0-or-later",
   "exports": "./src/mod.ts",
+  "nodeModulesDir": "auto",
   "imports": {
-    "axios": "npm:axios@^1.7.0"
+    "axios": "npm:axios@^1.7.0",
+    "viem": "npm:viem@^2.21.0",
+    "protobufjs": "npm:protobufjs@^7.4.0",
+    "@noble/hashes/blake3": "npm:@noble/hashes@^1.5.0/blake3",
+    "@noble/hashes/sha2": "npm:@noble/hashes@^1.5.0/sha2",
+    "@noble/ed25519": "npm:@noble/ed25519@^2.2.0"
+  },
+  "tasks": {
+    "test": "deno test --allow-read",
+    "check": "deno check src/mod.ts"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "dom.asynciterable", "deno.ns"],
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "module": "esnext",
-    "target": "esnext"
+    "module": "esnext"
   }
 }

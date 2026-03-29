@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import * as Types from "./types.ts";
+import { hubJsonToProtobufBytes } from "./signing/hub_json.ts";
 
 /**
  * HyperSnapClient is the main entry point for the HyperSnap SDK.
@@ -112,6 +113,11 @@ class V1Namespace {
   public events: EventsV1;
   /** APIs for Hub network information */
   public network: NetworkV1;
+  /**
+   * Submit signed protobuf messages (`POST /v1/submitMessage`).
+   * The node accepts `application/octet-stream` bodies only (not raw JSON).
+   */
+  public submit: SubmitV1;
 
   constructor(client: AxiosInstance, private parent: HyperSnapClient) {
     this.casts = new CastsV1(client, parent);
@@ -120,6 +126,7 @@ class V1Namespace {
     this.users = new UsersV1(client, parent);
     this.events = new EventsV1(client, parent);
     this.network = new NetworkV1(client, parent);
+    this.submit = new SubmitV1(client);
   }
 
   /**
@@ -394,6 +401,52 @@ class NetworkV1 {
    */
   async getPeers(): Promise<Types.V1.GetConnectedPeersResponse> {
     const { data } = await this.client.get("/v1/currentPeers");
+    return data;
+  }
+}
+
+/**
+ * Hub write API: `POST /v1/submitMessage` and `POST /v1/validateMessage` with `application/octet-stream` bodies.
+ *
+ * On the server, prefer passing bytes from the client or use `submitMessageFromHubJson` after `hubJsonToProtobufBytes`.
+ */
+export class SubmitV1 {
+  constructor(private client: AxiosInstance) {}
+
+  /**
+   * Submits a serialized `Message` protobuf to the node (hypersnap-compatible HTTP API).
+   *
+   * @param body - Raw protobuf bytes (e.g. from `encodeSignedMessage` on the client).
+   * @returns JSON representation of the accepted message as returned by the hub.
+   */
+  async submitMessageProtobuf(body: Uint8Array): Promise<Types.V1.Message> {
+    const { data } = await this.client.post<Types.V1.Message>("/v1/submitMessage", body, {
+      headers: { "Content-Type": "application/octet-stream" },
+      transformRequest: [(d) => d],
+    });
+    return data;
+  }
+
+  /**
+   * Converts hub-shaped JSON to protobuf and calls `submitMessageProtobuf` (for relay servers).
+   *
+   * @param message - `Types.V1.Message` from a client or `protobufMessageBytesToHubJson`.
+   */
+  async submitMessageFromHubJson(message: Types.V1.Message): Promise<Types.V1.Message> {
+    const bytes = await hubJsonToProtobufBytes(message);
+    return this.submitMessageProtobuf(bytes);
+  }
+
+  /**
+   * Asks the node to validate a `Message` without merging it (`POST /v1/validateMessage`).
+   *
+   * @param body - Same protobuf bytes as for `submitMessageProtobuf`.
+   */
+  async validateMessageProtobuf(body: Uint8Array): Promise<Types.V1.ValidationResult> {
+    const { data } = await this.client.post<Types.V1.ValidationResult>("/v1/validateMessage", body, {
+      headers: { "Content-Type": "application/octet-stream" },
+      transformRequest: [(d) => d],
+    });
     return data;
   }
 }
