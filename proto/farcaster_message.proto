@@ -1,0 +1,208 @@
+syntax = "proto3";
+
+// Bundled definitions (from subs/hypersnap/proto) for SDK protobuf tooling without import resolution.
+
+enum UserNameType {
+  USERNAME_TYPE_NONE = 0;
+  USERNAME_TYPE_FNAME = 1;
+  USERNAME_TYPE_ENS_L1 = 2;
+  USERNAME_TYPE_BASENAME = 3;
+}
+
+message UserNameProof {
+  uint64 timestamp = 1;
+  bytes name = 2;
+  bytes owner = 3;
+  bytes signature = 4;
+  uint64 fid = 5;
+  UserNameType type = 6;
+}
+
+message Message {
+  MessageData data = 1;
+  bytes hash = 2;
+  HashScheme hash_scheme = 3;
+  bytes signature = 4;
+  SignatureScheme signature_scheme = 5;
+  bytes signer = 6;
+  optional bytes data_bytes = 7;
+}
+
+message MessageData {
+  MessageType type = 1;
+  uint64 fid = 2;
+  uint32 timestamp = 3;
+  FarcasterNetwork network = 4;
+  oneof body {
+    CastAddBody cast_add_body = 5;
+    CastRemoveBody cast_remove_body = 6;
+    ReactionBody reaction_body = 7;
+    VerificationAddAddressBody verification_add_address_body = 9;
+    VerificationRemoveBody verification_remove_body = 10;
+    UserDataBody user_data_body = 12;
+    LinkBody link_body = 14;
+    UserNameProof username_proof_body = 15;
+    FrameActionBody frame_action_body = 16;
+    LinkCompactStateBody link_compact_state_body = 17;
+    LendStorageBody lend_storage_body = 18;
+  }
+}
+
+enum HashScheme {
+  HASH_SCHEME_NONE = 0;
+  HASH_SCHEME_BLAKE3 = 1;
+}
+
+enum SignatureScheme {
+  SIGNATURE_SCHEME_NONE = 0;
+  SIGNATURE_SCHEME_ED25519 = 1;
+  SIGNATURE_SCHEME_EIP712 = 2;
+}
+
+enum MessageType {
+  MESSAGE_TYPE_NONE = 0;
+  MESSAGE_TYPE_CAST_ADD = 1;
+  MESSAGE_TYPE_CAST_REMOVE = 2;
+  MESSAGE_TYPE_REACTION_ADD = 3;
+  MESSAGE_TYPE_REACTION_REMOVE = 4;
+  MESSAGE_TYPE_LINK_ADD = 5;
+  MESSAGE_TYPE_LINK_REMOVE = 6;
+  MESSAGE_TYPE_VERIFICATION_ADD_ETH_ADDRESS = 7;
+  MESSAGE_TYPE_VERIFICATION_REMOVE = 8;
+  MESSAGE_TYPE_USER_DATA_ADD = 11;
+  MESSAGE_TYPE_USERNAME_PROOF = 12;
+  MESSAGE_TYPE_FRAME_ACTION = 13;
+  MESSAGE_TYPE_LINK_COMPACT_STATE = 14;
+  MESSAGE_TYPE_LEND_STORAGE = 15;
+}
+
+enum FarcasterNetwork {
+  FARCASTER_NETWORK_NONE = 0;
+  FARCASTER_NETWORK_MAINNET = 1;
+  FARCASTER_NETWORK_TESTNET = 2;
+  FARCASTER_NETWORK_DEVNET = 3;
+}
+
+message UserDataBody {
+  UserDataType type = 1;
+  string value = 2;
+}
+
+enum UserDataType {
+  USER_DATA_TYPE_NONE = 0;
+  USER_DATA_TYPE_PFP = 1;
+  USER_DATA_TYPE_DISPLAY = 2;
+  USER_DATA_TYPE_BIO = 3;
+  USER_DATA_TYPE_URL = 5;
+  USER_DATA_TYPE_USERNAME = 6;
+  USER_DATA_TYPE_LOCATION = 7;
+  USER_DATA_TYPE_TWITTER = 8;
+  USER_DATA_TYPE_GITHUB = 9;
+  USER_DATA_TYPE_BANNER = 10;
+  USER_DATA_PRIMARY_ADDRESS_ETHEREUM = 11;
+  USER_DATA_PRIMARY_ADDRESS_SOLANA = 12;
+  USER_DATA_TYPE_PROFILE_TOKEN = 13;
+}
+
+message Embed {
+  oneof embed {
+    string url = 1;
+    CastId cast_id = 2;
+  }
+}
+
+enum CastType {
+  CAST = 0;
+  LONG_CAST = 1;
+  TEN_K_CAST = 2;
+}
+
+message CastAddBody {
+  repeated string embeds_deprecated = 1;
+  repeated uint64 mentions = 2;
+  oneof parent {
+    CastId parent_cast_id = 3;
+    string parent_url = 7;
+  }
+  string text = 4;
+  repeated uint32 mentions_positions = 5;
+  repeated Embed embeds = 6;
+  CastType type = 8;
+}
+
+message CastRemoveBody {
+  bytes target_hash = 1;
+}
+
+message CastId {
+  uint64 fid = 1;
+  bytes hash = 2;
+}
+
+message ReactionBody {
+  ReactionType type = 1;
+  oneof target {
+    CastId target_cast_id = 2;
+    string target_url = 3;
+  }
+}
+
+enum ReactionType {
+  REACTION_TYPE_NONE = 0;
+  REACTION_TYPE_LIKE = 1;
+  REACTION_TYPE_RECAST = 2;
+}
+
+enum Protocol {
+  PROTOCOL_ETHEREUM = 0;
+  PROTOCOL_SOLANA = 1;
+}
+
+message VerificationAddAddressBody {
+  bytes address = 1;
+  bytes claim_signature = 2;
+  bytes block_hash = 3;
+  uint32 verification_type = 4;
+  uint32 chain_id = 5;
+  Protocol protocol = 7;
+}
+
+message VerificationRemoveBody {
+  bytes address = 1;
+  Protocol protocol = 2;
+}
+
+message LinkBody {
+  string type = 1;
+  optional uint32 displayTimestamp = 2;
+  oneof target {
+    uint64 target_fid = 3;
+  }
+}
+
+message LinkCompactStateBody {
+  string type = 1;
+  repeated uint64 target_fids = 2;
+}
+
+message FrameActionBody {
+  bytes url = 1;
+  uint32 button_index = 2;
+  CastId cast_id = 3;
+  bytes input_text = 4;
+  bytes state = 5;
+  bytes transaction_id = 6;
+  bytes address = 7;
+}
+
+enum StorageUnitType {
+  UNIT_TYPE_LEGACY = 0;
+  UNIT_TYPE_2024 = 1;
+  UNIT_TYPE_2025 = 2;
+}
+
+message LendStorageBody {
+  uint64 to_fid = 1;
+  uint64 num_units = 2;
+  StorageUnitType unit_type = 3;
+}
