@@ -405,11 +405,19 @@ class NetworkV1 {
   }
 }
 
+/**
+ * Hub write API: `POST /v1/submitMessage` and `POST /v1/validateMessage` with `application/octet-stream` bodies.
+ *
+ * On the server, prefer passing bytes from the client or use `submitMessageFromHubJson` after `hubJsonToProtobufBytes`.
+ */
 export class SubmitV1 {
   constructor(private client: AxiosInstance) {}
 
   /**
-   * Submit an already-encoded `Message` protobuf (matches hypersnap HTTP API).
+   * Submits a serialized `Message` protobuf to the node (hypersnap-compatible HTTP API).
+   *
+   * @param body - Raw protobuf bytes (e.g. from `encodeSignedMessage` on the client).
+   * @returns JSON representation of the accepted message as returned by the hub.
    */
   async submitMessageProtobuf(body: Uint8Array): Promise<Types.V1.Message> {
     const { data } = await this.client.post<Types.V1.Message>("/v1/submitMessage", body, {
@@ -420,7 +428,9 @@ export class SubmitV1 {
   }
 
   /**
-   * Encode hub JSON (e.g. from a browser or relay) to protobuf and submit.
+   * Converts hub-shaped JSON to protobuf and calls `submitMessageProtobuf` (for relay servers).
+   *
+   * @param message - `Types.V1.Message` from a client or `protobufMessageBytesToHubJson`.
    */
   async submitMessageFromHubJson(message: Types.V1.Message): Promise<Types.V1.Message> {
     const bytes = await hubJsonToProtobufBytes(message);
@@ -428,7 +438,9 @@ export class SubmitV1 {
   }
 
   /**
-   * Validate a protobuf message without merging (`POST /v1/validateMessage`).
+   * Asks the node to validate a `Message` without merging it (`POST /v1/validateMessage`).
+   *
+   * @param body - Same protobuf bytes as for `submitMessageProtobuf`.
    */
   async validateMessageProtobuf(body: Uint8Array): Promise<Types.V1.ValidationResult> {
     const { data } = await this.client.post<Types.V1.ValidationResult>("/v1/validateMessage", body, {

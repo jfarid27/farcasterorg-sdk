@@ -7,12 +7,20 @@ import { etc, getPublicKey, sign, verify } from "@noble/ed25519";
 etc.sha512Sync = (...messages: Uint8Array[]) => sha512(etc.concatBytes(...messages));
 
 /**
- * Farcaster hub messages use an Ed25519 signer key (32-byte secret seed), not an Ethereum secp256k1 key.
- * Use {@link hexToEd25519SecretKey} to interpret a hex string as raw Ed25519 key bytes.
- * Viem is used for hex typing and conversion only.
+ * Branded type for a 32-byte Ed25519 secret seed used to sign hub messages.
+ *
+ * This is **not** an Ethereum private key. Farcaster app signers are Ed25519 keys registered on-chain for an FID.
+ * Viem is only used to parse hex strings into these bytes via `hexToEd25519SecretKey`.
  */
 export type Ed25519SecretKey = Uint8Array & { readonly __brand: "Ed25519SecretKey" };
 
+/**
+ * Parses a `0x`-prefixed hex string into a 32-byte Ed25519 secret key (Farcaster app signer seed).
+ *
+ * @param hex - Exactly 32 bytes as 64 hex characters (with `0x` prefix), per viem `Hex`.
+ * @returns A secret key suitable for {@link signMessageHashDigest} and {@link encodeSignedMessage}.
+ * @throws If the length is not 32 bytes.
+ */
 export function hexToEd25519SecretKey(hex: Hex): Ed25519SecretKey {
   const b = hexToBytes(hex);
   if (b.length !== 32) {
@@ -21,6 +29,11 @@ export function hexToEd25519SecretKey(hex: Hex): Ed25519SecretKey {
   return b as Ed25519SecretKey;
 }
 
+/**
+ * Encodes a 32-byte Ed25519 public key as a lowercase `0x` hex string (hub JSON `signer` field).
+ *
+ * @param publicKey - 32-byte Ed25519 verifying key.
+ */
 export function ed25519PublicKeyToHex(publicKey: Uint8Array): Hex {
   if (publicKey.length !== 32) {
     throw new Error("Ed25519 public key must be 32 bytes");
@@ -28,6 +41,15 @@ export function ed25519PublicKeyToHex(publicKey: Uint8Array): Hex {
   return bytesToHex(publicKey);
 }
 
+/**
+ * Signs the 20-byte Blake3 message digest with Ed25519 (RFC 8032), as required by hub validation.
+ *
+ * The hub verifies `signature` over **`hash`**, not over raw `MessageData` bytes.
+ *
+ * @param digest - Exactly 20 bytes from `blake3_20`.
+ * @param secretKey - App signer secret from {@link hexToEd25519SecretKey}.
+ * @returns 64-byte Ed25519 signature.
+ */
 export function signMessageHashDigest(
   digest: Uint8Array,
   secretKey: Ed25519SecretKey,
@@ -38,11 +60,23 @@ export function signMessageHashDigest(
   return sign(digest, secretKey);
 }
 
+/**
+ * Derives the Ed25519 public key (32 bytes) from a secret seed.
+ *
+ * @param secretKey - Same seed as used for signing.
+ */
 export function getSignerPublicKey(secretKey: Ed25519SecretKey): Uint8Array {
   return getPublicKey(secretKey);
 }
 
-/** Verify Ed25519 signature on the 20-byte Blake3 digest (hub validation). */
+/**
+ * Verifies an Ed25519 signature on the 20-byte Blake3 digest (mirrors hypersnap `validate_signature` for Ed25519).
+ *
+ * @param digest - 20-byte Blake3 hash of encoded `MessageData`.
+ * @param signature - 64-byte signature from {@link signMessageHashDigest}.
+ * @param publicKey - 32-byte Ed25519 public key (must match `Message.signer` on the wire).
+ * @returns `true` if the signature is valid for this digest and key.
+ */
 export function verifyMessageHashDigest(
   digest: Uint8Array,
   signature: Uint8Array,

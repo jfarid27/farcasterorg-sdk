@@ -4,8 +4,10 @@ import { encodeSignedMessage } from "./encode.ts";
 import type { Ed25519SecretKey } from "./ed25519_signer.ts";
 import type { MessageDataJson } from "./encode.ts";
 
+/** `FarcasterNetwork` enum value from `message.proto`: 1 = MAINNET, 2 = TESTNET, 3 = DEVNET. */
 export type FarcasterNetworkId = 1 | 2 | 3;
 
+/** Converts a cast hash from viem hex to 20 raw bytes for protobuf `CastId.hash` / `target_hash`. */
 function castHashToBytes(hash: Hex): Uint8Array {
   const b = hexToBytes(hash);
   if (b.length !== 20) {
@@ -14,6 +16,7 @@ function castHashToBytes(hash: Hex): Uint8Array {
   return b;
 }
 
+/** Parameters for a `MESSAGE_TYPE_CAST_ADD` body. */
 export interface CastAddParams {
   fid: number;
   network: FarcasterNetworkId;
@@ -25,10 +28,16 @@ export interface CastAddParams {
   embeds?: Array<{ url: string } | { castId: { fid: number; hash: Hex } }>;
   parentCastId?: { fid: number; hash: Hex };
   parentUrl?: string;
-  /** 0 = CAST, 1 = LONG_CAST, 2 = TEN_K_CAST */
+  /** `CastType` enum: `0` = CAST, `1` = LONG_CAST, `2` = TEN_K_CAST */
   castType?: number;
 }
 
+/**
+ * Builds protobuf-json `MessageData` for a new cast (`MESSAGE_TYPE_CAST_ADD`).
+ *
+ * @param params - FID, network, Farcaster timestamp, text, optional embeds/parent.
+ * @returns Object suitable for `encodeSignedMessage`.
+ */
 export function buildCastAddMessageData(params: CastAddParams): MessageDataJson {
   const embeds = (params.embeds ?? []).map((e) => {
     if ("url" in e) {
@@ -69,6 +78,7 @@ export function buildCastAddMessageData(params: CastAddParams): MessageDataJson 
   return body;
 }
 
+/** Parameters for `MESSAGE_TYPE_CAST_REMOVE`. */
 export interface CastRemoveParams {
   fid: number;
   network: FarcasterNetworkId;
@@ -76,6 +86,11 @@ export interface CastRemoveParams {
   targetCastHash: Hex;
 }
 
+/**
+ * Builds `MessageData` to delete a cast by hash (`MESSAGE_TYPE_CAST_REMOVE`).
+ *
+ * @param params - Author FID, network, timestamp, and 20-byte cast hash to remove.
+ */
 export function buildCastRemoveMessageData(params: CastRemoveParams): MessageDataJson {
   return {
     type: 2, // MESSAGE_TYPE_CAST_REMOVE
@@ -88,16 +103,23 @@ export function buildCastRemoveMessageData(params: CastRemoveParams): MessageDat
   };
 }
 
+/** Parameters for reaction add/remove (`MESSAGE_TYPE_REACTION_ADD` or `_REMOVE`). */
 export interface ReactionParams {
   fid: number;
   network: FarcasterNetworkId;
   timestamp: number;
-  /** 1 = LIKE, 2 = RECAST */
+  /** `ReactionType`: `1` = LIKE, `2` = RECAST */
   reactionType: 1 | 2;
   targetCastId: { fid: number; hash: Hex };
-  messageType: 3 | 4; // REACTION_ADD | REACTION_REMOVE
+  /** `3` = REACTION_ADD, `4` = REACTION_REMOVE */
+  messageType: 3 | 4;
 }
 
+/**
+ * Builds `MessageData` for a like/recast on a cast.
+ *
+ * @param params - Includes whether this is add or remove via `messageType`.
+ */
 export function buildReactionMessageData(params: ReactionParams): MessageDataJson {
   return {
     type: params.messageType,
@@ -114,16 +136,24 @@ export function buildReactionMessageData(params: ReactionParams): MessageDataJso
   };
 }
 
+/** Parameters for link add/remove (e.g. follow, block). */
 export interface LinkParams {
   fid: number;
   network: FarcasterNetworkId;
   timestamp: number;
+  /** Link type string, max 8 chars (e.g. `"follow"`, `"block"`). */
   linkType: string;
   targetFid: number;
-  messageType: 5 | 6; // LINK_ADD | LINK_REMOVE
+  /** `5` = LINK_ADD, `6` = LINK_REMOVE */
+  messageType: 5 | 6;
   displayTimestamp?: number;
 }
 
+/**
+ * Builds `MessageData` for a social link between FIDs (`MESSAGE_TYPE_LINK_ADD` or `_LINK_REMOVE`).
+ *
+ * @param params - `linkType` distinguishes follow vs block etc.; `messageType` selects add vs remove.
+ */
 export function buildLinkMessageData(params: LinkParams): MessageDataJson {
   const link: Record<string, unknown> = {
     type: params.linkType,
@@ -141,7 +171,7 @@ export function buildLinkMessageData(params: LinkParams): MessageDataJson {
   };
 }
 
-/** User data type enum values from `UserDataType` in message.proto */
+/** Numeric `UserDataType` values from `message.proto` (display name, bio, PFP URL, etc.). */
 export type UserDataTypeNumber =
   | 1
   | 2
@@ -156,6 +186,7 @@ export type UserDataTypeNumber =
   | 12
   | 13;
 
+/** Parameters for `MESSAGE_TYPE_USER_DATA_ADD`. */
 export interface UserDataAddParams {
   fid: number;
   network: FarcasterNetworkId;
@@ -164,6 +195,11 @@ export interface UserDataAddParams {
   value: string;
 }
 
+/**
+ * Builds `MessageData` for profile metadata (`MESSAGE_TYPE_USER_DATA_ADD`).
+ *
+ * @param params - `userDataType` matches protobuf `UserDataType` numeric values.
+ */
 export function buildUserDataAddMessageData(params: UserDataAddParams): MessageDataJson {
   return {
     type: 11, // MESSAGE_TYPE_USER_DATA_ADD
@@ -177,22 +213,39 @@ export function buildUserDataAddMessageData(params: UserDataAddParams): MessageD
   };
 }
 
+/**
+ * Convenience: `buildCastAddMessageData` then `encodeSignedMessage`.
+ *
+ * @returns Full `Message` protobuf bytes.
+ */
 export async function signCastAdd(params: CastAddParams, secretKey: Ed25519SecretKey): Promise<Uint8Array> {
   return encodeSignedMessage(buildCastAddMessageData(params), secretKey);
 }
 
+/**
+ * Convenience: `buildCastRemoveMessageData` then `encodeSignedMessage`.
+ */
 export async function signCastRemove(params: CastRemoveParams, secretKey: Ed25519SecretKey): Promise<Uint8Array> {
   return encodeSignedMessage(buildCastRemoveMessageData(params), secretKey);
 }
 
+/**
+ * Convenience: `buildReactionMessageData` then `encodeSignedMessage`.
+ */
 export async function signReaction(params: ReactionParams, secretKey: Ed25519SecretKey): Promise<Uint8Array> {
   return encodeSignedMessage(buildReactionMessageData(params), secretKey);
 }
 
+/**
+ * Convenience: `buildLinkMessageData` then `encodeSignedMessage`.
+ */
 export async function signLink(params: LinkParams, secretKey: Ed25519SecretKey): Promise<Uint8Array> {
   return encodeSignedMessage(buildLinkMessageData(params), secretKey);
 }
 
+/**
+ * Convenience: `buildUserDataAddMessageData` then `encodeSignedMessage`.
+ */
 export async function signUserDataAdd(
   params: UserDataAddParams,
   secretKey: Ed25519SecretKey,

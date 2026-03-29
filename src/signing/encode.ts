@@ -4,9 +4,20 @@ import type { Ed25519SecretKey } from "./ed25519_signer.ts";
 import { getSignerPublicKey, signMessageHashDigest } from "./ed25519_signer.ts";
 import { getProtoRoot } from "./proto_root.ts";
 
+/**
+ * Loose object accepted by protobufjs for a `MessageData` message (field names match `farcaster_message.proto`, e.g. `cast_add_body`).
+ */
 export type MessageDataJson = Record<string, unknown>;
 
-/** Encodes `MessageData`, hashes with Blake3 (20 bytes), signs with Ed25519, returns full `Message` protobuf bytes. */
+/**
+ * Encodes `MessageData`, computes Blake3 (20 bytes), signs with Ed25519, and returns a full `Message` protobuf byte array.
+ *
+ * Use this on a **client** (e.g. mobile app) to produce the body for `POST /v1/submitMessage` (`application/octet-stream`).
+ *
+ * @param messageData - Valid protobuf-json shape for `MessageData` (see `buildCastAddMessageData` and related builders).
+ * @param secretKey - Farcaster app signer (Ed25519 seed), not an Ethereum key.
+ * @returns Serialized `Message` ready to POST as raw bytes.
+ */
 export async function encodeSignedMessage(
   messageData: MessageDataJson,
   secretKey: Ed25519SecretKey,
@@ -47,7 +58,14 @@ export async function encodeSignedMessage(
   return new Uint8Array(Message.encode(msgObj).finish());
 }
 
-/** Returns serialized `MessageData` and the 20-byte digest used for signing. */
+/**
+ * Serializes `MessageData` and returns both the canonical bytes and the 20-byte Blake3 digest used as the signed payload.
+ *
+ * Useful for tests or custom signing flows; normal use is `encodeSignedMessage`.
+ *
+ * @param messageData - Same shape as for {@link encodeSignedMessage}.
+ * @returns `dataBytes` — protobuf payload; `hash` — `blake3_20(dataBytes)`.
+ */
 export async function hashMessageData(messageData: MessageDataJson): Promise<{
   dataBytes: Uint8Array;
   hash: Uint8Array;
@@ -63,6 +81,11 @@ export async function hashMessageData(messageData: MessageDataJson): Promise<{
   return { dataBytes, hash: blake3_20(dataBytes) };
 }
 
+/**
+ * Decodes protobuf `Message` bytes into a protobufjs runtime message (inspect fields or re-encode).
+ *
+ * @param bytes - Output of {@link encodeSignedMessage} or bytes from the network.
+ */
 export async function decodeMessageProtobuf(bytes: Uint8Array): Promise<protobuf.Message> {
   const root = await getProtoRoot();
   const Message = root.lookupType("Message");

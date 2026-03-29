@@ -21,7 +21,15 @@ function b64ToHex0x(b64: string): Hex {
   return bytesToHex(b64Decode(b64)) as Hex;
 }
 
-/** Map protobuf `Message` bytes to the JSON shape returned by hub HTTP APIs (e.g. `submitMessage` response). */
+/**
+ * Decodes a protobuf `Message` and maps it to the **hub HTTP JSON** shape (`Types.V1.Message`).
+ *
+ * Use after `encodeSignedMessage` to obtain JSON you can send over your own API (mobile → server).
+ * Fields match hub responses: string enums like `MESSAGE_TYPE_*`, base64 `signature`, `0x` hex for `hash` and `signer`.
+ *
+ * @param bytes - Raw `Message` protobuf (same bytes you would POST with `application/octet-stream`).
+ * @returns JSON-safe object aligned with `submitMessage` / `validateMessage` response bodies.
+ */
 export async function protobufMessageBytesToHubJson(bytes: Uint8Array): Promise<Types.V1.Message> {
   const root = await getProtoRoot();
   const Message = root.lookupType("Message");
@@ -180,8 +188,14 @@ function toU8(v: unknown): Uint8Array {
 }
 
 /**
- * Convert hub JSON (`validateMessage` / `submitMessage` wire shape) back to protobuf bytes for POSTing.
- * Use this on a relay server that receives JSON from clients and forwards to a node.
+ * Encodes hub-compatible JSON back to protobuf `Message` bytes for `POST /v1/submitMessage`.
+ *
+ * Intended for a **server** that receives JSON from clients and must send `application/octet-stream` to a node.
+ * Pairs with `protobufMessageBytesToHubJson` for a lossless round-trip for supported body types.
+ *
+ * @param msg - `Types.V1.Message` with string enums and hex/base64 fields as returned by the hub.
+ * @returns Byte array to pass to `HyperSnapClient.v1.submit.submitMessageProtobuf` or any HTTP client with octet-stream.
+ * @throws If the JSON cannot be verified as valid protobuf `Message` / `MessageData`.
  */
 export async function hubJsonToProtobufBytes(msg: Types.V1.Message): Promise<Uint8Array> {
   const root = await getProtoRoot();

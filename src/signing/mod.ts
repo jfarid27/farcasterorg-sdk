@@ -1,6 +1,16 @@
 /**
- * Signed writes use **Ed25519** signer keys registered on-chain for an FID (see hypersnap `validate_signature`).
- * Ethereum wallets (viem `PrivateKeyAccount`) sign **different** curves; this module uses viem only for `Hex` and byte conversion of **raw Ed25519** key material.
+ * Signed hub writes use **Ed25519** keys registered for an FID (hypersnap validates `SIGNATURE_SCHEME_ED25519`).
+ *
+ * **Mobile + server:** The app can bundle this SDK to build and sign protobuf `Message` bytes (or hub JSON for your API).
+ * A typical **Ethereum viem wallet** (`PrivateKeyAccount`) does **not** sign these messages; you need the user’s
+ * **Farcaster app signer** secret (32-byte Ed25519 seed), often stored in the app secure storage. Viem is only used here
+ * for viem `Hex` typing and `hexToBytes` / `bytesToHex` for that key material.
+ *
+ * The **server** can use the same SDK to turn relayed hub JSON into protobuf (`hubJsonToProtobufBytes`) and call
+ * `HyperSnapClient` methods `v1.submit.submitMessageProtobuf` / `submitMessageFromHubJson` against a node
+ * (`Content-Type: application/octet-stream`).
+ *
+ * @module
  */
 export * from "./blake3_20.ts";
 export * from "./constants.ts";
