@@ -1,6 +1,6 @@
 # Client
 
-The SDK entry class is **`HyperSnapClient`**. It wraps an Axios instance and exposes two top-level **namespaces**:
+The SDK entry class is **`HyperSnapClient`**. It exposes two top-level **namespaces**:
 
 - **`v1`** — Hubble-compatible hub HTTP APIs (reads and writes).
 - **`v2`** — Farcaster-style compatibility endpoints (reads only in this SDK).

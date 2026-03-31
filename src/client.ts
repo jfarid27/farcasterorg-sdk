@@ -1,4 +1,3 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import * as Types from "./types.ts";
 import { hubJsonToProtobufBytes } from "./signing/hub_json.ts";
 
@@ -14,7 +13,8 @@ import { hubJsonToProtobufBytes } from "./signing/hub_json.ts";
  * `(SHA256(FID_BE_BYTES).take(4).to_u32_be() % total_shards) + 1`
  */
 export class HyperSnapClient {
-  private axios: AxiosInstance;
+  private baseURL: string;
+  private config?: RequestInit;
   /** Namespace for Hubble-compatible Hub V1 APIs */
   public v1: V1Namespace;
   /** Namespace for Farcaster API V2 compatibility APIs */
@@ -25,16 +25,77 @@ export class HyperSnapClient {
   /**
    * Create a new HyperSnapClient.
    * @param baseURL The base URL of the HyperSnap node (e.g., "http://localhost:8080")
-   * @param config Optional Axios request configuration
+   * @param config Optional fetch request configuration
    */
-  constructor(baseURL: string, config?: AxiosRequestConfig) {
-    this.axios = axios.create({
-      baseURL,
-      ...config,
+  constructor(baseURL: string, config?: RequestInit) {
+    this.baseURL = baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL;
+    this.config = config;
+
+    this.v1 = new V1Namespace(this);
+    this.v2 = new V2Namespace(this);
+  }
+
+  /**
+   * Internal request helper.
+   */
+  private async request<T>(
+    method: string,
+    path: string,
+    options: {
+      params?: Record<string, any>;
+      body?: any;
+      headers?: Record<string, string>;
+    } = {},
+  ): Promise<T> {
+    const url = new URL(path.startsWith("/") ? path : `/${path}`, this.baseURL);
+    if (options.params) {
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+    }
+
+    const res = await fetch(url.toString(), {
+      method,
+      ...this.config,
+      headers: {
+        ...this.config?.headers,
+        ...options.headers,
+      },
+      body: options.body,
     });
 
-    this.v1 = new V1Namespace(this.axios, this);
-    this.v2 = new V2Namespace(this.axios);
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const errorData = await res.json();
+        detail = errorData.detail || errorData.details || JSON.stringify(errorData);
+      } catch {
+        // use statusText if json fails
+      }
+      throw new Error(`HTTP error! status: ${res.status}, detail: ${detail}`);
+    }
+
+    const contentType = res.headers.get("content-type");
+    if (contentType?.includes("application/octet-stream")) {
+      return (await res.arrayBuffer()) as T;
+    }
+    return (await res.json()) as T;
+  }
+
+  /**
+   * Perform a GET request.
+   */
+  async get<T>(path: string, params?: Record<string, any>): Promise<T> {
+    return this.request<T>("GET", path, { params });
+  }
+
+  /**
+   * Perform a POST request.
+   */
+  async post<T>(path: string, body?: any, options: { headers?: Record<string, string> } = {}): Promise<T> {
+    return this.request<T>("POST", path, { body, ...options });
   }
 
   /**
@@ -78,7 +139,7 @@ export class HyperSnapClient {
    * Fetch the latest shard count from the node and update the local cache.
    */
   async refreshShardInfo(): Promise<void> {
-    const { data } = await this.axios.get<Types.V1.InfoResponse>("/v1/info");
+    const data = await this.get<Types.V1.InfoResponse>("/v1/info");
     this._numShards = data.numShards;
   }
 
@@ -119,13 +180,13 @@ class V1Namespace {
    */
   public submit: SubmitV1;
 
-  constructor(client: AxiosInstance, private parent: HyperSnapClient) {
-    this.casts = new CastsV1(client, parent);
-    this.reactions = new ReactionsV1(client, parent);
-    this.links = new LinksV1(client, parent);
-    this.users = new UsersV1(client, parent);
-    this.events = new EventsV1(client, parent);
-    this.network = new NetworkV1(client, parent);
+  constructor(private client: HyperSnapClient) {
+    this.casts = new CastsV1(client);
+    this.reactions = new ReactionsV1(client);
+    this.links = new LinksV1(client);
+    this.users = new UsersV1(client);
+    this.events = new EventsV1(client);
+    this.network = new NetworkV1(client);
     this.submit = new SubmitV1(client);
   }
 
@@ -143,17 +204,14 @@ class V1Namespace {
  * V1 APIs for interacting with Casts.
  */
 class CastsV1 {
-  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
+  constructor(private client: HyperSnapClient) {}
 
   /**
    * Retrieve a specific cast by its FID and hash.
    * Sharding: The node routes this internally based on FID.
    */
   async getById(fid: number, hash: string): Promise<Types.V1.Message> {
-    const { data } = await this.client.get("/v1/castById", {
-      params: { fid, hash },
-    });
-    return data;
+    return this.client.get("/v1/castById", { fid, hash });
   }
 
   /**
@@ -168,10 +226,7 @@ class CastsV1 {
     page_token?: string;
     reverse?: boolean;
   }): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/castsByFid", {
-      params,
-    });
-    return data;
+    return this.client.get("/v1/castsByFid", params);
   }
 
   /**
@@ -179,10 +234,7 @@ class CastsV1 {
    * Sharding: The node routes this internally based on FID.
    */
   async getByMention(fid: number): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/castsByMention", {
-      params: { fid },
-    });
-    return data;
+    return this.client.get("/v1/castsByMention", { fid });
   }
 
   /**
@@ -194,10 +246,7 @@ class CastsV1 {
     hash?: string;
     url?: string;
   }): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/castsByParent", {
-      params,
-    });
-    return data;
+    return this.client.get("/v1/castsByParent", params);
   }
 }
 
@@ -205,7 +254,7 @@ class CastsV1 {
  * V1 APIs for interacting with Reactions.
  */
 class ReactionsV1 {
-  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
+  constructor(private client: HyperSnapClient) {}
 
   /**
    * Retrieve a specific reaction.
@@ -218,8 +267,7 @@ class ReactionsV1 {
     target_hash?: string;
     target_url?: string;
   }): Promise<Types.V1.Message> {
-    const { data } = await this.client.get("/v1/reactionById", { params });
-    return data;
+    return this.client.get("/v1/reactionById", params);
   }
 
   /**
@@ -227,10 +275,7 @@ class ReactionsV1 {
    * Sharding: The node routes this internally based on FID.
    */
   async getByFid(fid: number, reaction_type: number): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/reactionsByFid", {
-      params: { fid, reaction_type },
-    });
-    return data;
+    return this.client.get("/v1/reactionsByFid", { fid, reaction_type });
   }
 
   /**
@@ -238,10 +283,7 @@ class ReactionsV1 {
    * Sharding: The node routes this internally based on target_fid.
    */
   async getByCast(target_fid: number, target_hash: string): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/reactionsByCast", {
-      params: { target_fid, target_hash },
-    });
-    return data;
+    return this.client.get("/v1/reactionsByCast", { target_fid, target_hash });
   }
 }
 
@@ -249,17 +291,14 @@ class ReactionsV1 {
  * V1 APIs for interacting with Links.
  */
 class LinksV1 {
-  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
+  constructor(private client: HyperSnapClient) {}
 
   /**
    * Retrieve a specific link.
    * Sharding: The node routes this internally based on FID.
    */
   async getById(fid: number, link_type: string, target_fid?: number): Promise<Types.V1.Message> {
-    const { data } = await this.client.get("/v1/linkById", {
-      params: { fid, link_type, target_fid },
-    });
-    return data;
+    return this.client.get("/v1/linkById", { fid, link_type, target_fid });
   }
 
   /**
@@ -267,10 +306,7 @@ class LinksV1 {
    * Sharding: The node routes this internally based on FID.
    */
   async getByFid(fid: number, link_type?: string): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/linksByFid", {
-      params: { fid, link_type },
-    });
-    return data;
+    return this.client.get("/v1/linksByFid", { fid, link_type });
   }
 }
 
@@ -278,15 +314,14 @@ class LinksV1 {
  * V1 APIs for interacting with Users and Storage.
  */
 class UsersV1 {
-  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
+  constructor(private client: HyperSnapClient) {}
 
   /**
    * Retrieve user data (pfp, bio, etc.) for a specific FID.
    * Sharding: The node routes this internally based on FID.
    */
   async getDataByFid(fid: number): Promise<Types.V1.PagedResponse> {
-    const { data } = await this.client.get("/v1/userDataByFid", { params: { fid } });
-    return data;
+    return this.client.get("/v1/userDataByFid", { fid });
   }
 
   /**
@@ -294,40 +329,28 @@ class UsersV1 {
    * Sharding: The node routes this internally based on FID.
    */
   async getStorageLimits(fid: number): Promise<Types.V1.StorageLimitsResponse> {
-    const { data } = await this.client.get("/v1/storageLimitsByFid", {
-      params: { fid },
-    });
-    return data;
+    return this.client.get("/v1/storageLimitsByFid", { fid });
   }
 
   /**
    * Look up an FID by a username.
    */
   async getFidByName(name: string, type?: string): Promise<Types.V1.FidResponse> {
-    const { data } = await this.client.get("/v1/fidByName", {
-      params: { name, type },
-    });
-    return data;
+    return this.client.get("/v1/fidByName", { name, type });
   }
 
   /**
    * Retrieve connected addresses for a username.
    */
   async getAddressesByName(name: string, type?: string): Promise<Types.V1.NameToAddressResponse> {
-    const { data } = await this.client.get("/v1/addressesByName", {
-      params: { name, type },
-    });
-    return data;
+    return this.client.get("/v1/addressesByName", { name, type });
   }
 
   /**
    * Look up FIDs associated with an Ethereum or Solana address.
    */
   async getFidByAddress(address: string): Promise<Types.V1.AddressToFidResponse> {
-    const { data } = await this.client.get("/v1/fidByAddress", {
-      params: { address },
-    });
-    return data;
+    return this.client.get("/v1/fidByAddress", { address });
   }
 
   /**
@@ -345,8 +368,7 @@ class UsersV1 {
     page_token?: string;
     reverse?: boolean;
   }): Promise<Types.V1.GetFidsResponse> {
-    const { data } = await this.client.get("/v1/fids", { params });
-    return data;
+    return this.client.get("/v1/fids", params);
   }
 }
 
@@ -354,7 +376,7 @@ class UsersV1 {
  * V1 APIs for interacting with Hub Events.
  */
 class EventsV1 {
-  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
+  constructor(private client: HyperSnapClient) {}
 
   /**
    * Stream or poll hub events for a specific shard.
@@ -365,18 +387,14 @@ class EventsV1 {
     shard_index: number;
     stop_id?: number;
   }): Promise<Types.V1.EventsResponse> {
-    const { data } = await this.client.get("/v1/events", { params });
-    return data;
+    return this.client.get("/v1/events", params);
   }
 
   /**
    * Retrieve a specific hub event by its ID and shard index.
    */
   async getEventById(event_id: number, shard_index: number): Promise<Types.V1.HubEvent> {
-    const { data } = await this.client.get("/v1/eventById", {
-      params: { event_id, shard_index },
-    });
-    return data;
+    return this.client.get("/v1/eventById", { event_id, shard_index });
   }
 }
 
@@ -384,15 +402,15 @@ class EventsV1 {
  * V1 APIs for Hub network information.
  */
 class NetworkV1 {
-  constructor(private client: AxiosInstance, private parent: HyperSnapClient) {}
+  constructor(private client: HyperSnapClient) {}
 
   /**
    * Get general information about the Hub.
    * This updates the client's internal shard count.
    */
   async getInfo(): Promise<Types.V1.InfoResponse> {
-    const { data } = await this.client.get("/v1/info");
-    this.parent.numShards = data.numShards;
+    const data = await this.client.get<Types.V1.InfoResponse>("/v1/info");
+    this.client.numShards = data.numShards;
     return data;
   }
 
@@ -400,8 +418,7 @@ class NetworkV1 {
    * Retrieve the list of currently connected gossip peers.
    */
   async getPeers(): Promise<Types.V1.GetConnectedPeersResponse> {
-    const { data } = await this.client.get("/v1/currentPeers");
-    return data;
+    return this.client.get("/v1/currentPeers");
   }
 }
 
@@ -411,7 +428,7 @@ class NetworkV1 {
  * On the server, prefer passing bytes from the client or use `submitMessageFromHubJson` after `hubJsonToProtobufBytes`.
  */
 export class SubmitV1 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: HyperSnapClient) {}
 
   /**
    * Submits a serialized `Message` protobuf to the node (hypersnap-compatible HTTP API).
@@ -420,11 +437,9 @@ export class SubmitV1 {
    * @returns JSON representation of the accepted message as returned by the hub.
    */
   async submitMessageProtobuf(body: Uint8Array): Promise<Types.V1.Message> {
-    const { data } = await this.client.post<Types.V1.Message>("/v1/submitMessage", body, {
+    return this.client.post<Types.V1.Message>("/v1/submitMessage", body, {
       headers: { "Content-Type": "application/octet-stream" },
-      transformRequest: [(d) => d],
     });
-    return data;
   }
 
   /**
@@ -443,11 +458,9 @@ export class SubmitV1 {
    * @param body - Same protobuf bytes as for `submitMessageProtobuf`.
    */
   async validateMessageProtobuf(body: Uint8Array): Promise<Types.V1.ValidationResult> {
-    const { data } = await this.client.post<Types.V1.ValidationResult>("/v1/validateMessage", body, {
+    return this.client.post<Types.V1.ValidationResult>("/v1/validateMessage", body, {
       headers: { "Content-Type": "application/octet-stream" },
-      transformRequest: [(d) => d],
     });
-    return data;
   }
 }
 
@@ -461,7 +474,7 @@ class V2Namespace {
   public conversations: ConversationsV2;
   public feeds: FeedsV2;
 
-  constructor(client: AxiosInstance) {
+  constructor(client: HyperSnapClient) {
     this.social = new SocialV2(client);
     this.channels = new ChannelsV2(client);
     this.search = new SearchV2(client);
@@ -471,53 +484,45 @@ class V2Namespace {
 }
 
 class SocialV2 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: HyperSnapClient) {}
   async getFollowers(fid: number, cursor?: string, limit?: number): Promise<Types.V2.FollowersResponse> {
-    const { data } = await this.client.get("/v2/farcaster/followers", { params: { fid, cursor, limit } });
-    return data;
+    return this.client.get("/v2/farcaster/followers", { fid, cursor, limit });
   }
   async getFollowing(fid: number, cursor?: string, limit?: number): Promise<Types.V2.FollowersResponse> {
-    const { data } = await this.client.get("/v2/farcaster/following", { params: { fid, cursor, limit } });
-    return data;
+    return this.client.get("/v2/farcaster/following", { fid, cursor, limit });
   }
 }
 
 class ChannelsV2 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: HyperSnapClient) {}
   async getInfo(id: string, type: "id" | "parent_url" = "id"): Promise<Types.V2.ChannelResponse> {
-    const { data } = await this.client.get("/v2/farcaster/channel", { params: { id, type } });
-    return data;
+    return this.client.get("/v2/farcaster/channel", { id, type });
   }
   async getMembers(channel_id: string, cursor?: string, limit?: number): Promise<Types.V2.ChannelMemberListResponse> {
-    const { data } = await this.client.get("/v2/farcaster/channel/member/list", { params: { channel_id, cursor, limit } });
-    return data;
+    return this.client.get("/v2/farcaster/channel/member/list", { channel_id, cursor, limit });
   }
 }
 
 class SearchV2 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: HyperSnapClient) {}
   async searchCasts(q: string, cursor?: string, limit?: number): Promise<Types.V2.CastsSearchResponse> {
-    const { data } = await this.client.get("/v2/farcaster/cast/search", { params: { q, cursor, limit } });
-    return data;
+    return this.client.get("/v2/farcaster/cast/search", { q, cursor, limit });
   }
 }
 
 class ConversationsV2 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: HyperSnapClient) {}
   async getConversation(identifier: string, type: "hash" | "url", reply_depth?: number): Promise<Types.V2.ConversationResponse> {
-    const { data } = await this.client.get("/v2/farcaster/cast/conversation", { params: { identifier, type, reply_depth } });
-    return data;
+    return this.client.get("/v2/farcaster/cast/conversation", { identifier, type, reply_depth });
   }
 }
 
 class FeedsV2 {
-  constructor(private client: AxiosInstance) {}
+  constructor(private client: HyperSnapClient) {}
   async getFollowingFeed(fid: number, cursor?: string, limit?: number): Promise<Types.V2.FeedResponse> {
-    const { data } = await this.client.get("/v2/farcaster/feed/following", { params: { fid, cursor, limit } });
-    return data;
+    return this.client.get("/v2/farcaster/feed/following", { fid, cursor, limit });
   }
   async getTrendingFeed(time_window?: string, cursor?: string, limit?: number): Promise<Types.V2.FeedResponse> {
-    const { data } = await this.client.get("/v2/farcaster/feed/trending", { params: { time_window, cursor, limit } });
-    return data;
+    return this.client.get("/v2/farcaster/feed/trending", { time_window, cursor, limit });
   }
 }
